@@ -1,0 +1,253 @@
+---
+title: "KMO for BLP"
+author: "Annie Helms (annie_helms@berkeley.edu)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, dev = "cairo_pdf")
+options(scipen = 999) # avoid scientific notation
+```
+
+Library packages
+
+```{r message = FALSE, warning = FALSE}
+library(lmerTest) #mixed effects linear regression
+library(dplyr)
+library(ggplot2)
+library(Cairo)
+library(effects)
+library(ragg)
+library(ggside)
+library(sjPlot)
+library(emmeans)
+library(ggstatsplot)
+library(pscl)
+library(ggtext)
+library(kableExtra) # formats dataframes in html output
+```
+
+Set working directory.
+
+```{r message = FALSE, echo = FALSE}
+setwd("C:/Users/atarv/Documents/github/diss/perception/")
+```
+
+
+## First read in Catalan perception data
+
+`Response_binary` is coded where "ult" = ultimate stress; "pen" = penultimate stress, so the estimates are leveled according to 'ult' responses.
+
+```{r}
+data = read.csv("data/cat_r.csv", 
+                  stringsAsFactors = TRUE)
+later_blocks = data %>%
+  filter(block!=0)
+
+model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*pc1 + 
+                     formant_center*duration_center*spectilt_center*pc2 + (1|partID), data = later_blocks, family = "binomial")
+summary(model_lang)
+
+# get list of all participants
+parts_df= read.csv("../blp/data/parts.csv", 
+                  stringsAsFactors = TRUE)
+parts = unique(parts_df$partID)
+
+# for loop that will calculate estimate for each participant for each acoustic measure and output df
+vowels_list = c()
+vowels_std = c()
+st_list = c()
+st_std = c()
+dur_list = c()
+dur_std = c()
+parts_list = c()
+#lang_profile_list = c()
+
+for (i in parts){
+  if (i %in% later_blocks$partID) {
+    data = later_blocks %>%
+      filter(partID == i)
+    model = glm(response_binary ~ formant_center*duration_center*spectilt_center, data = data, family = "binomial")
+    slope_v = summary(model)$coefficients[2,1]
+    std_v = summary(model)$coefficients[2,2]
+    slope_dur = summary(model)$coefficients[3,1]
+    std_dur = summary(model)$coefficients[3,2]
+    slope_st = summary(model)$coefficients[4,1]
+    std_st = summary(model)$coefficients[4,2]
+    vowels_list = c(vowels_list, slope_v)
+    vowels_std = c(vowels_std, std_v)
+    parts_list = append(parts_list, i)
+    dur_list = c(dur_list, slope_dur)
+    dur_std = c(dur_std, std_dur)
+    st_list = c(st_list, slope_st)
+    st_std = c(st_std, std_st)
+    }
+}
+
+df_cat = data.frame(parts_list, #lang_profile_list,
+                vowels_list, vowels_std, dur_list, dur_std, st_list, st_std)
+df_cat = df_cat %>% 
+        rename("partID" = "parts_list",
+               #"lang_profile" = "lang_profile_list",
+               "cat_vowel_estimate" = "vowels_list",
+               "cat_vowel_std" = "vowels_std",
+               "cat_duration_estimate" = "dur_list",
+               "cat_duration_std" = "dur_std",
+               "cat_spectilt_estimate" = "st_list",
+               "cat_spectilt_std" = "st_std")
+head(df_cat)
+```
+
+
+## Now read in Spanish data
+
+```{r}
+data = read.csv("data/span_r.csv", 
+                  stringsAsFactors = TRUE)
+later_blocks = data %>%
+  filter(block!=0)
+
+model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*pc1 + 
+                     formant_center*duration_center*spectilt_center*pc2 + (1|partID), data = later_blocks, family = "binomial")
+summary(model_lang)
+
+# get list of all participants
+parts_df= read.csv("../blp/data/parts.csv", 
+                  stringsAsFactors = TRUE)
+parts = unique(parts_df$partID)
+
+# for loop that will calculate estimate for each participant for each acoustic measure and output df
+vowels_list = c()
+vowels_std = c()
+st_list = c()
+st_std = c()
+dur_list = c()
+dur_std = c()
+parts_list = c()
+#lang_profile_list = c()
+
+for (i in parts){
+  if (i %in% later_blocks$partID) {
+    data = later_blocks %>%
+      filter(partID == i)
+    model = glm(response_binary ~ formant_center*duration_center*spectilt_center, data = data, family = "binomial")
+    slope_v = summary(model)$coefficients[2,1]
+    std_v = summary(model)$coefficients[2,2]
+    slope_dur = summary(model)$coefficients[3,1]
+    std_dur = summary(model)$coefficients[3,2]
+    slope_st = summary(model)$coefficients[4,1]
+    std_st = summary(model)$coefficients[4,2]
+    vowels_list = c(vowels_list, slope_v)
+    vowels_std = c(vowels_std, std_v)
+    parts_list = append(parts_list, i)
+    dur_list = c(dur_list, slope_dur)
+    dur_std = c(dur_std, std_dur)
+    st_list = c(st_list, slope_st)
+    st_std = c(st_std, std_st)
+    }
+}
+
+df_spa = data.frame(parts_list, #lang_profile_list,
+                vowels_list, vowels_std, dur_list, dur_std, st_list, st_std)
+df_spa = df_spa %>% 
+        rename("partID" = "parts_list",
+               #"lang_profile" = "lang_profile_list",
+               "spa_vowel_estimate" = "vowels_list",
+               "spa_vowel_std" = "vowels_std",
+               "spa_duration_estimate" = "dur_list",
+               "spa_duration_std" = "dur_std",
+               "spa_spectilt_estimate" = "st_list",
+               "spa_spectilt_std" = "st_std")
+head(df_spa)
+```
+
+## Now read in English data
+
+```{r}
+# read in data
+eng = read.csv("data/eng_r.csv", 
+                  stringsAsFactors = TRUE)
+
+later_blocks = data %>%
+  filter(block!=0)
+
+model_lang = glm(response_binary ~ formant_center*duration_center*spectilt_center*lang_profile, data = later_blocks, family = "binomial")
+summary(model_lang)
+
+# get list of all participants
+parts_df= read.csv("../blp/data/parts.csv", 
+                  stringsAsFactors = TRUE)
+parts = unique(parts_df$partID)
+
+# for loop that will calculate estimate for each participant for each acoustic measure and output df
+vowels_list = c()
+vowels_std = c()
+st_list = c()
+st_std = c()
+dur_list = c()
+dur_std = c()
+parts_list = c()
+#lang_profile_list = c()
+
+for (i in parts){
+  if (i %in% later_blocks$partID) {
+    data = later_blocks %>%
+      filter(partID == i)
+    model = glm(response_binary ~ formant_center*duration_center*spectilt_center, data = data, family = "binomial")
+    slope_v = summary(model)$coefficients[2,1]
+    std_v = summary(model)$coefficients[2,2]
+    slope_dur = summary(model)$coefficients[3,1]
+    std_dur = summary(model)$coefficients[3,2]
+    slope_st = summary(model)$coefficients[4,1]
+    std_st = summary(model)$coefficients[4,2]
+    vowels_list = c(vowels_list, slope_v)
+    vowels_std = c(vowels_std, std_v)
+    parts_list = append(parts_list, i)
+    dur_list = c(dur_list, slope_dur)
+    dur_std = c(dur_std, std_dur)
+    st_list = c(st_list, slope_st)
+    st_std = c(st_std, std_st)
+    }
+}
+
+df_eng = data.frame(parts_list, #lang_profile_list,
+                vowels_list, vowels_std, dur_list, dur_std, st_list, st_std)
+df_eng = df_eng %>% 
+        rename("partID" = "parts_list",
+               #"lang_profile" = "lang_profile_list",
+               "eng_vowel_estimate" = "vowels_list",
+               "eng_vowel_std" = "vowels_std",
+               "eng_duration_estimate" = "dur_list",
+               "eng_duration_std" = "dur_std",
+               "eng_spectilt_estimate" = "st_list",
+               "eng_spectilt_std" = "st_std")
+head(df_eng)
+```
+
+## Now combine into larger df
+
+```{r}
+df_all = merge(df_cat, df_spa, by = "partID", all.x = TRUE, all.y = TRUE)
+df_all = merge(df_all, df_eng, by = "partID", all.x = TRUE, all.y = TRUE)
+sample(df_all)
+```
+
+## Now combine with full blp data
+```{r}
+blp = read.csv("../blp/data/blp_cleaned.csv", 
+                  stringsAsFactors = TRUE)
+df_blp = merge(df_all, blp, by = "partID")
+write.csv(df_blp, "data/estimates_and_blp.csv", row.names = FALSE)
+```
+
+
+```{r}
+head(df_blp)
+```
+
