@@ -66,6 +66,8 @@ data = read.csv("data/cat_r.csv",
 later_blocks = data %>%
   filter(block!=0)
 
+model_lang_plot = glm(response_binary ~ formant_center*duration_center*spectilt_center*pc1 +
+                     formant_center*duration_center*spectilt_center*pc2, data = later_blocks, family = "binomial")
 model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*pc1 +
                      formant_center*duration_center*spectilt_center*pc2 + (1|partID), data = later_blocks, family = "binomial")
 summary(model_lang)
@@ -132,9 +134,102 @@ head(df_cat)
 Visualizations of significant interactions
 
 ```{r}
-
+set_theme(base = theme_bw())
+cat_vowel_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "formant_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "Catalan perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_vowel_pc1
+```
+```{r}
+cairo_pdf("figures/cat_vowel_pc1.pdf", family = "serif", width = 8, height = 4)
+cat_vowel_pc1
+dev.off()
 ```
 
+```{r}
+set_theme(base = theme_bw())
+cat_dur_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "duration_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "Catalan perception",
+           legend.title = "Duration steps",
+           pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_dur_pc1
+```
+
+```{r}
+cairo_pdf("figures/cat_dur_pc1.pdf", family = "serif", width = 8, height = 4)
+cat_dur_pc1
+dev.off()
+```
+
+
+```{r}
+set_theme(base = theme_bw())
+cat_st_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "spectilt_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "Catalan perception", legend.title = "Spectral tilt steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_st_pc1
+```
+```{r}
+cairo_pdf("figures/cat_st_pc1.pdf", family = "serif", width = 8, height = 4)
+cat_st_pc1
+dev.off()
+```
+
+```{r}
+set_theme(base = theme_bw())
+cat_vowel_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "formant_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "Catalan perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_vowel_pc2
+```
+```{r}
+cairo_pdf("figures/cat_vowel_pc2.pdf", family = "serif", width = 8, height = 4)
+cat_vowel_pc2
+dev.off()
+```
+
+```{r}
+set_theme(base = theme_bw())
+cat_st_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "spectilt_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "Catalan perception", legend.title = "Spectral tilt steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_st_pc2
+```
+```{r}
+cairo_pdf("figures/cat_st_pc2.pdf", family = "serif", width = 8, height = 4)
+cat_st_pc2
+dev.off()
+```
+
+```{r}
+set_theme(base = theme_bw())
+cat_vowel_st_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "formant_center", "spectilt_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "Catalan perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+cat_vowel_st_pc2$facet$params$nrow=1
+
+cat_vowel_st_pc2$data$facet <- ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = -2", "Spectral tilt step 1",
+ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = -1", "Spectral tilt step 2",
+ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = 0", "Spectral tilt step 3",
+ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = 1", "Spectral tilt step 4",
+ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = 2", "Spectral tilt step 5", 99)))))
+
+cat_vowel_st_pc2
+```
+
+```{r}
+cairo_pdf("figures/cat_vowel_st_pc2.pdf", family = "serif", width = 10, height = 4)
+cat_vowel_st_pc2
+dev.off()
+```
 
 ## Now read in Spanish data
 
@@ -145,6 +240,8 @@ data = read.csv("data/span_r.csv",
 later_blocks = data %>%
   filter(block!=0)
 
+model_lang_plot = glm(response_binary ~ formant_center*duration_center*spectilt_center*pc1 + 
+                     formant_center*duration_center*spectilt_center*pc2, data = later_blocks, family = "binomial")
 model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*pc1 + 
                      formant_center*duration_center*spectilt_center*pc2 + (1|partID), data = later_blocks, family = "binomial")
 summary(model_lang)
@@ -210,7 +307,25 @@ df_spa = df_spa %>%
 head(df_spa)
 ```
 
-## Now read in English data
+Visualizations of significant interactions
+
+```{r}
+set_theme(base = theme_bw())
+spa_vowel_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "formant_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "Spanish perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+spa_vowel_pc1
+```
+```{r}
+cairo_pdf("figures/spa_vowel_pc1.pdf", family = "serif", width = 8, height = 4)
+spa_vowel_pc1
+dev.off()
+```
+
+
+
+## Now read in English data for a comparison with the monolingual speakers
 
 ```{r}
 options(width = 10000)
@@ -221,7 +336,9 @@ eng = read.csv("data/eng_r.csv",
 later_blocks = eng %>%
   filter(block!=0)
 
-model_lang = glm(response_binary ~ formant_center*duration_center*spectilt_center*lang_profile, data = later_blocks, family = "binomial")
+model_lang_plot = glm(response_binary ~ formant_center*duration_center*spectilt_center*lang_profile, data = later_blocks, family = "binomial")
+model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*lang_profile + (1|partID),
+                   data = later_blocks, family = "binomial")
 summary(model_lang)
 
 # get list of all participants
@@ -282,6 +399,73 @@ df_eng = df_eng %>%
                "eng_spectilt_estimate" = "st_list",
                "eng_spectilt_std" = "st_std")
 head(df_eng)
+```
+
+## Now look at English perception just across the trilingual speakers
+
+```{r}
+options(width = 10000)
+# read in data
+eng_tri = eng %>%
+  filter(block!=0, lang_profile!= "mono")
+
+model_lang_plot = glm(response_binary ~ formant_center*duration_center*spectilt_center*pc1 +
+                        formant_center*duration_center*spectilt_center*pc2, data = eng_tri, family = "binomial")
+model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*pc1 +
+                        formant_center*duration_center*spectilt_center*pc2 + (1|partID), data = eng_tri, family = "binomial")
+summary(model_lang)
+```
+
+Visualizations for significant interactions:
+
+```{r}
+set_theme(base = theme_bw())
+eng_vowel_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "formant_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "English perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_vowel_pc1
+```
+```{r}
+cairo_pdf("figures/eng_vowel_pc1.pdf", family = "serif", width = 8, height = 4)
+eng_vowel_pc1
+dev.off()
+```
+
+```{r}
+set_theme(base = theme_bw())
+eng_dur_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "duration_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "English perception", legend.title = "Duration steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_dur_pc2
+```
+```{r}
+cairo_pdf("figures/eng_dur_pc2.pdf", family = "serif", width = 8, height = 4)
+eng_dur_pc2
+dev.off()
+```
+```{r}
+set_theme(base = theme_bw())
+eng_vowel_st_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "formant_center", "spectilt_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "English perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_vowel_st_pc2$facet$params$nrow=1
+
+eng_vowel_st_pc2$data$facet <- ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = -2", "Spectral tilt step 1",
+ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = -1", "Spectral tilt step 2",
+ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = 0", "Spectral tilt step 3",
+ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = 1", "Spectral tilt step 4",
+ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = 2", "Spectral tilt step 5", 99)))))
+
+eng_vowel_st_pc2
+```
+```{r}
+cairo_pdf("figures/eng_vowel_st_pc2.pdf", family = "serif", width = 8, height = 4)
+eng_vowel_st_pc2
+dev.off()
 ```
 
 ## Now combine into larger df
