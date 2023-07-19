@@ -1,0 +1,1046 @@
+---
+title: "Logit models of production data"
+author: "Annie Helms (annie_helms@berkeley.edu)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, dev = "cairo_pdf")
+options(scipen = 999) # avoid scientific notation
+```
+
+Library packages
+
+```{r message = FALSE, warning = FALSE}
+library(lmerTest) #mixed effects linear regression
+library(dplyr)
+library(ggplot2)
+library(Cairo)
+library(effects)
+library(ragg)
+library(gridExtra)
+library(ggside)
+library(sjPlot)
+library(emmeans)
+library(ggstatsplot)
+library(pscl)
+library(ggtext)
+library(kableExtra) # formats dataframes in html output
+```
+
+Set working directory.
+
+```{r message = FALSE, echo = FALSE}
+setwd("C:/Users/atarv/Documents/github/diss/production/")
+```
+
+
+## First read in production data
+
+```{r}
+options(width = 10000)
+data = read.csv("data/big_PCA_forR.csv", 
+                  stringsAsFactors = TRUE)
+head(data)
+```
+
+```{r}
+cat_init = data %>%
+  filter(Language=="cat" & syllable == "pen")
+head(cat_init)
+
+```
+
+```{r}
+cat_init_model= glmer(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2 +
+                        (1|partID), data = cat_init, family = "binomial")
+cat_init_model_plot= glm(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2,
+                         data = cat_init, family = "binomial")
+summary(cat_init_model)
+```
+```{r}
+cat_init %>%
+  group_by(lang_profile, stress) %>%
+  count(Label)
+```
+
+As PC1 increases (English dominance relative to Spanish and Catalan dominance), a stressed penultimate vowel is less probable. This could be due to the fact that L1 English speakers had more tokens thrown out that were stressed than L3 speakers. For all speakers, in general, the duration-no creak acoustic properties were correlated to stressed vowels, where longer duration and more modal phonation are associated with stressed productions. Similarly, higher f0 and lower spectral tilt were correlated to stressed vowels, as well as more peripheral vowels. With increasing English dominance, speakers used duration/modal speech less to cue stressed productions. Vowel peripherity is used slightly less with increasing English dominance. 
+
+```{r}
+set_theme(base = theme_bw())
+catinit_pc1 = plot_model(cat_init_model_plot, type = "pred", terms = c("pc1 [all]"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Catalan penultimate production",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+catinit_pc1
+```
+
+
+```{r}
+set_theme(base = theme_bw())
+catinit_specdur_pc1 = plot_model(cat_init_model_plot, type = "pred", terms = c("pc1 [all]", "spec_dur"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Catalan penultimate production - Specdur",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+catinit_specdur_pc1
+```
+
+```{r}
+set_theme(base = theme_bw())
+catinit_vowel_pc1 = plot_model(cat_init_model_plot, type = "pred", terms = c("pc1 [all]", "vowel_periph"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Catalan penultimate production - Vowel peripherity",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+catinit_vowel_pc1
+```
+
+
+```{r}
+cat_final = data %>%
+  filter(Language=="cat" & syllable == "ult")
+head(cat_final)
+```
+
+```{r}
+cat_final_model= glmer(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2 +
+                         (1|partID),
+                     data = cat_final, family = "binomial")
+cat_final_model_plot= glm(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2,
+                     data = cat_final, family = "binomial")
+summary(cat_final_model)
+```
+
+```{r}
+set_theme(base = theme_bw())
+catfinal_f0 = plot_model(cat_final_model_plot, type = "pred", terms = c("f0_creak"), axis.title = c("F0", "% stressed"),
+           title = "Catalan ultimate production - F0",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+catfinal_f0
+```
+
+As F0/high frequency intensity increases, syllables are more likely to be unstressed?
+
+```{r}
+set_theme(base = theme_bw())
+catfinal_vowel_pc1 = plot_model(cat_final_model_plot, type = "pred", terms = c("pc1 [all]", "vowel_periph"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Catalan ultimate production - Vowel peripherity",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+catfinal_vowel_pc1
+```
+
+As English dominance increases, vowel peripherity is more productive?
+
+```{r}
+eng_init = data %>%
+  filter(Language=="eng" & lang_profile !="mono" & syllable == "pen")
+head(eng_init)
+```
+
+```{r}
+eng_init_model= glmer(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2 +
+                        (1|partID),
+                     data = eng_init, family = "binomial")
+eng_init_model_plot= glm(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2,
+                     data = eng_init, family = "binomial")
+summary(eng_init_model)
+```
+
+```{r}
+set_theme(base = theme_bw())
+enginit_specdur_pc1 = plot_model(eng_init_model_plot, type = "pred", terms = c("pc1 [all]", "spec_dur"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "English penultimate production - Duration",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+enginit_specdur_pc1
+```
+
+Duration is more productive with increasing English dominance in penultimate syllables.
+
+```{r}
+set_theme(base = theme_bw())
+enginit_vowel_pc2 = plot_model(eng_init_model_plot, type = "pred", terms = c("pc2 [all]", "vowel_periph"), axis.title = c("Principal Component 2", "% stressed"),
+           title = "English penultimate production - Vowel peripherity",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+enginit_vowel_pc2
+```
+
+When Spanish dominance is higher than Catalan dominance, vowel peripherality is more productive.
+
+```{r}
+set_theme(base = theme_bw())
+enginit_dur = plot_model(eng_init_model_plot, type = "pred", terms = c("spec_dur"), axis.title = c("Duration", "% stressed"),
+           title = "English penultimate production - Duration",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+enginit_dur
+```
+
+Increasing duration is correlated to an increasing probability of stressed syllable.
+
+```{r}
+set_theme(base = theme_bw())
+enginit_f0 = plot_model(eng_init_model_plot, type = "pred", terms = c("f0_creak"), axis.title = c("F0", "% stressed"),
+           title = "English penultimate production - F0",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+enginit_f0
+```
+
+Women have more creak and in unstressed syllables?
+
+```{r}
+set_theme(base = theme_bw())
+enginit_vowel = plot_model(eng_init_model_plot, type = "pred", terms = c("vowel_periph"), axis.title = c("Vowel peripherality", "% stressed"),
+           title = "English penultimate production - Vowel peripherality",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+enginit_vowel
+```
+
+```{r}
+eng_final = data %>%
+  filter(Language=="eng" & lang_profile !="mono" & syllable == "ult")
+head(eng_final)
+```
+
+```{r}
+eng_final_model= glmer(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2 +
+                         (1|partID),
+                     data = eng_final, family = "binomial")
+eng_final_model_plot= glm(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2,
+                     data = eng_final, family = "binomial")
+summary(eng_final_model)
+```
+
+```{r}
+set_theme(base = theme_bw())
+engfinal_specdur_pc1 = plot_model(eng_final_model_plot, type = "pred", terms = c("pc1 [all]", "spec_dur"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "English ultimate production - Specdur",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+engfinal_specdur_pc1
+```
+Duration is more productive for less English-dominant speakers, perhaps there is more word-final vowel lengthening among more dominant English speakers?
+
+
+```{r}
+set_theme(base = theme_bw())
+engfinal_vowel_pc1 = plot_model(eng_final_model_plot, type = "pred", terms = c("pc1 [all]", "vowel_periph"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "English ultimate production - Vowel peripherity",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+engfinal_vowel_pc1
+```
+
+Vowel peripherity is more productive for less English-dominant speakers (there is less phonological centralization in ultimate syllables.)
+
+```{r}
+set_theme(base = theme_bw())
+engfinal_dur = plot_model(eng_final_model_plot, type = "pred", terms = c("spec_dur"), axis.title = c("Duration", "% stressed"),
+           title = "English ultimate production - Duration",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+engfinal_dur
+```
+
+```{r}
+set_theme(base = theme_bw())
+engfinal_vowel = plot_model(eng_final_model_plot, type = "pred", terms = c("vowel_periph"), axis.title = c("Vowel peripherality", "% stressed"),
+           title = "English ultimate production - Vowel peripherity",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+engfinal_vowel
+```
+
+```{r}
+spa_init = data %>%
+  filter(Language=="spa" & syllable == "pen")
+head(spa_init)
+```
+
+```{r}
+spa_init_model= glmer(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2 +
+                         (1|partID),
+                     data = spa_init, family = "binomial")
+spa_init_model_plot= glm(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2,
+                     data = spa_init, family = "binomial")
+summary(spa_init_model)
+```
+
+```{r}
+set_theme(base = theme_bw())
+spainit_dur_pc1 = plot_model(spa_init_model_plot, type = "pred", terms = c("pc1 [all]", "spec_dur"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Spanish penultimate production - duration",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spainit_dur_pc1
+```
+
+Duration is more productive for less-dominant English speakers.
+
+```{r}
+set_theme(base = theme_bw())
+spainit_dur_pc2 = plot_model(spa_init_model_plot, type = "pred", terms = c("pc2 [all]", "spec_dur"), axis.title = c("Principal Component 2", "% stressed"),
+           title = "Spanish penultimate production - duration",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spainit_dur_pc2
+```
+
+Slightly more productive with more Spanish dominance than Catalan dominance.
+
+```{r}
+set_theme(base = theme_bw())
+spainit_f0_pc1 = plot_model(spa_init_model_plot, type = "pred", terms = c("pc1 [all]", "f0_creak"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Spanish penultimate production - f0",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spainit_f0_pc1
+```
+
+More creak among more English-dominant speakers?
+
+```{r}
+set_theme(base = theme_bw())
+spainit_f0 = plot_model(spa_init_model_plot, type = "pred", terms = c("f0_creak"), axis.title = c("f0", "% stressed"),
+           title = "Spanish penultimate production - f0",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spainit_f0
+```
+
+```{r}
+set_theme(base = theme_bw())
+spainit_dur = plot_model(spa_init_model_plot, type = "pred", terms = c("spec_dur"), axis.title = c("Duration", "% stressed"),
+           title = "Spanish penultimate production - Duration",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spainit_dur
+```
+
+```{r}
+set_theme(base = theme_bw())
+spainit_vowel = plot_model(spa_init_model_plot, type = "pred", terms = c("vowel_periph"), axis.title = c("Vowel peripherity", "% stressed"),
+           title = "Spanish penultimate production - Vowel peripherity",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spainit_vowel
+```
+
+```{r}
+spa_final = data %>%
+  filter(Language=="spa" & syllable == "ult")
+head(spa_final)
+```
+
+```{r}
+spa_final_model= glmer(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2 +
+                         (1|partID),
+                     data = spa_final, family = "binomial")
+spa_final_model_plot= glm(stress ~ spec_dur*pc1 + spec_dur*pc2 + f0_creak*pc1 + f0_creak*pc2 + vowel_periph*pc1 + vowel_periph*pc2,
+                     data = spa_final, family = "binomial")
+summary(spa_final_model)
+```
+
+```{r}
+set_theme(base = theme_bw())
+spafinal_dur_pc1 = plot_model(spa_final_model_plot, type = "pred", terms = c("pc1 [all]", "spec_dur"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Spanish ultimate production - Duration",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spafinal_dur_pc1
+```
+
+For ultimate syllables and more English dominant speakers, duration is more productive.
+
+```{r}
+set_theme(base = theme_bw())
+spafinal_f0_pc1 = plot_model(spa_final_model_plot, type = "pred", terms = c("pc1 [all]", "f0_creak"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Spanish ultimate production - F0",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spafinal_f0_pc1
+```
+
+```{r}
+set_theme(base = theme_bw())
+spafinal_f0_pc2 = plot_model(spa_final_model_plot, type = "pred", terms = c("pc2 [all]", "f0_creak"), axis.title = c("Principal Component 2", "% stressed"),
+           title = "Spanish ultimate production - F0",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spafinal_f0_pc2
+```
+
+```{r}
+set_theme(base = theme_bw())
+spafinal_f0 = plot_model(spa_final_model_plot, type = "pred", terms = c("f0_creak"), axis.title = c("F0", "% stressed"),
+           title = "Spanish ultimate production - F0",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spafinal_f0
+```
+
+```{r}
+set_theme(base = theme_bw())
+spafinal_vowel_pc1 = plot_model(spa_final_model_plot, type = "pred", terms = c("pc1 [all]", "vowel_periph"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Spanish ultimate production - Vowel peripherty",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+spafinal_vowel_pc1
+```
+
+```{r}
+eng_lang_init = data %>%
+  filter(Language=="eng" & syllable == "pen")
+head(eng_lang_init)
+```
+
+```{r}
+eng_lang_init_model= glmer(stress ~ spec_dur*lang_profile + f0_creak*lang_profile + vowel_periph*lang_profile +
+                         (1|partID),
+                     data = eng_lang_init, family = "binomial")
+eng_lang_init_model_plot= glm(stress ~ spec_dur*lang_profile + f0_creak*lang_profile + vowel_periph*lang_profile,
+                     data = eng_lang_init, family = "binomial")
+summary(eng_lang_init_model)
+```
+
+```{r}
+set_theme(base = theme_bw())
+eng_lang_init_vowel_lang = plot_model(eng_lang_init_model_plot, type = "pred", terms = c("lang_profile", "vowel_periph"), axis.title = c("Language Profile", "% stressed"),
+           title = "English penultimate production - Vowel peripherity",
+           #legend.title = "Steps",
+           pred.type = "re") +
+  #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+eng_lang_init_vowel_lang
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+later_blocks = data %>%
+  filter(block!=0)
+
+model_lang_plot = glm(response_binary ~ formant_center*duration_center*spectilt_center*pc1 +
+                     formant_center*duration_center*spectilt_center*pc2, data = later_blocks, family = "binomial")
+model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*pc1 +
+                     formant_center*duration_center*spectilt_center*pc2 + (1|partID), data = later_blocks, family = "binomial")
+summary(model_lang)
+
+# get list of all participants
+parts_df= read.csv("../blp/data/parts.csv", 
+                  stringsAsFactors = TRUE)
+parts = unique(parts_df$partID)
+
+# for loop that will calculate estimate for each participant for each acoustic measure and output df
+warning_list = c()
+vowels_list = c()
+vowels_std = c()
+st_list = c()
+st_std = c()
+dur_list = c()
+dur_std = c()
+parts_list = c()
+#lang_profile_list = c()
+
+for (i in parts){
+  if (i %in% later_blocks$partID) {
+    data = later_blocks %>%
+      filter(partID == i)
+    warn_found = as.character(myTryCatch(glm(response_binary ~ formant_center*duration_center*spectilt_center,
+                                             data = data, family = "binomial"))[2])
+    if (warn_found == "NULL") {
+      warning_list = append(warning_list, "0")
+    } else {
+      warning_list = append(warning_list, warn_found)
+    }
+    model = glm(response_binary ~ formant_center*duration_center*spectilt_center, data = data, family = "binomial")
+    slope_v = summary(model)$coefficients[2,1]
+    std_v = summary(model)$coefficients[2,2]
+    slope_dur = summary(model)$coefficients[3,1]
+    std_dur = summary(model)$coefficients[3,2]
+    slope_st = summary(model)$coefficients[4,1]
+    std_st = summary(model)$coefficients[4,2]
+    vowels_list = c(vowels_list, slope_v)
+    vowels_std = c(vowels_std, std_v)
+    parts_list = append(parts_list, i)
+    dur_list = c(dur_list, slope_dur)
+    dur_std = c(dur_std, std_dur)
+    st_list = c(st_list, slope_st)
+    st_std = c(st_std, std_st)
+    }
+}
+
+df_cat = data.frame(parts_list, #lang_profile_list,
+                    warning_list, vowels_list, vowels_std, dur_list, dur_std, st_list, st_std)
+df_cat = df_cat %>% 
+        rename("partID" = "parts_list",
+               #"lang_profile" = "lang_profile_list",
+               "cat_warning" = "warning_list",
+               "cat_vowel_estimate" = "vowels_list",
+               "cat_vowel_std" = "vowels_std",
+               "cat_duration_estimate" = "dur_list",
+               "cat_duration_std" = "dur_std",
+               "cat_spectilt_estimate" = "st_list",
+               "cat_spectilt_std" = "st_std")
+head(df_cat)
+```
+
+Visualizations of significant interactions
+
+```{r}
+set_theme(base = theme_bw())
+cat_vowel_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "formant_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "Catalan perception - Vowel quality", legend.title = "Steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "none") +
+  scale_y_continuous(labels=c(0,25,50,75,100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+cat_vowel_pc1
+```
+```{r}
+cairo_pdf("figures/cat_vowel_pc1.pdf", family = "serif", width = 4, height = 4)
+cat_vowel_pc1
+dev.off()
+```
+
+
+
+```{r}
+set_theme(base = theme_bw())
+cat_dur_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "duration_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "Catalan perception - Duration",
+           legend.title = "Steps",
+           pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "none") +
+  scale_y_continuous(labels=c(0,25, 50, 75, 100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+cat_dur_pc1
+```
+
+```{r}
+cairo_pdf("figures/cat_dur_pc1.pdf", family = "serif", width = 4, height = 4)
+cat_dur_pc1
+dev.off()
+```
+
+
+```{r}
+set_theme(base = theme_bw())
+cat_st_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "spectilt_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "Catalan perception - Spectral tilt", legend.title = "Steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = c(0.5,0.1), legend.direction="horizontal") +
+  scale_y_continuous(labels=c(0,25, 50, 75, 100), breaks=c(0,0.25, 0.5, 0.75, 1), limits = c(0,1))
+cat_st_pc1
+```
+```{r}
+cairo_pdf("figures/cat_st_pc1.pdf", family = "serif", width = 4, height = 4)
+cat_st_pc1
+dev.off()
+```
+```{r}
+cairo_pdf("figures/cat_pc1.pdf", family = "serif", width = 12, height = 4)
+grid.arrange(cat_vowel_pc1, cat_st_pc1, cat_dur_pc1, ncol = 3)
+dev.off()
+```
+
+
+```{r}
+set_theme(base = theme_bw())
+cat_vowel_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "formant_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "Catalan perception - Vowel quality", legend.title = "Steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "none", legend.direction="horizontal") +
+  scale_y_continuous(labels=c(25, 50, 75, 100), breaks=c(0.25, 0.5, 0.75, 1), limits = c(0,1))
+cat_vowel_pc2
+```
+```{r}
+cairo_pdf("figures/cat_vowel_pc2.pdf", family = "serif", width = 8, height = 4)
+cat_vowel_pc2
+dev.off()
+```
+
+```{r}
+set_theme(base = theme_bw())
+cat_st_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "spectilt_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "Catalan perception - Spectral tilt", legend.title = "Steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = c(0.5, 0.08), legend.direction = "horizontal") +
+  scale_y_continuous(labels=c(25, 50, 75, 100), breaks=c(0.25, 0.5, 0.75, 1), limits = c(0,1))
+cat_st_pc2
+```
+```{r}
+cairo_pdf("figures/cat_st_pc2.pdf", family = "serif", width = 8, height = 4)
+cat_st_pc2
+dev.off()
+```
+
+```{r}
+cairo_pdf("figures/cat_pc2.pdf", family = "serif", width = 8, height = 4)
+grid.arrange(cat_vowel_pc2, cat_st_pc2, ncol = 2)
+dev.off()
+```
+
+```{r}
+set_theme(base = theme_bw())
+cat_vowel_st_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "formant_center", "spectilt_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "Catalan perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+cat_vowel_st_pc2$facet$params$nrow=1
+
+cat_vowel_st_pc2$data$facet <- ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = -2", "Spectral tilt step 1",
+ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = -1", "Spectral tilt step 2",
+ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = 0", "Spectral tilt step 3",
+ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = 1", "Spectral tilt step 4",
+ifelse(cat_vowel_st_pc2$data$facet == "spectilt_center = 2", "Spectral tilt step 5", 99)))))
+
+cat_vowel_st_pc2
+```
+
+```{r}
+cairo_pdf("figures/cat_vowel_st_pc2.pdf", family = "serif", width = 10, height = 4)
+cat_vowel_st_pc2
+dev.off()
+```
+
+## Now read in Spanish data
+
+```{r}
+options(width = 10000)
+data = read.csv("data/span_r.csv", 
+                  stringsAsFactors = TRUE)
+later_blocks = data %>%
+  filter(block!=0)
+
+model_lang_plot = glm(response_binary ~ formant_center*duration_center*spectilt_center*pc1 + 
+                     formant_center*duration_center*spectilt_center*pc2, data = later_blocks, family = "binomial")
+model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*pc1 + 
+                     formant_center*duration_center*spectilt_center*pc2 + (1|partID), data = later_blocks, family = "binomial")
+summary(model_lang)
+
+# get list of all participants
+parts_df= read.csv("../blp/data/parts.csv", 
+                  stringsAsFactors = TRUE)
+parts = unique(parts_df$partID)
+
+# for loop that will calculate estimate for each participant for each acoustic measure and output df
+warning_list = c()
+vowels_list = c()
+vowels_std = c()
+st_list = c()
+st_std = c()
+dur_list = c()
+dur_std = c()
+parts_list = c()
+#lang_profile_list = c()
+
+for (i in parts){
+  if (i %in% later_blocks$partID) {
+    data = later_blocks %>%
+      filter(partID == i)
+    warn_found = as.character(myTryCatch(glm(response_binary ~ formant_center*duration_center*spectilt_center,
+                                             data = data, family = "binomial"))[2])
+    if (warn_found == "NULL") {
+      warning_list = append(warning_list, "0")
+    } else {
+      warning_list = append(warning_list, warn_found)
+    }
+    model = glm(response_binary ~ formant_center*duration_center*spectilt_center, data = data, family = "binomial")
+    slope_v = summary(model)$coefficients[2,1]
+    std_v = summary(model)$coefficients[2,2]
+    slope_dur = summary(model)$coefficients[3,1]
+    std_dur = summary(model)$coefficients[3,2]
+    slope_st = summary(model)$coefficients[4,1]
+    std_st = summary(model)$coefficients[4,2]
+    vowels_list = c(vowels_list, slope_v)
+    vowels_std = c(vowels_std, std_v)
+    parts_list = append(parts_list, i)
+    dur_list = c(dur_list, slope_dur)
+    dur_std = c(dur_std, std_dur)
+    st_list = c(st_list, slope_st)
+    st_std = c(st_std, std_st)
+    }
+}
+
+
+df_spa = data.frame(parts_list, #lang_profile_list,
+                    warning_list,
+                vowels_list, vowels_std, dur_list, dur_std, st_list, st_std)
+df_spa = df_spa %>% 
+        rename("partID" = "parts_list",
+               #"lang_profile" = "lang_profile_list",
+               "spa_warning" = "warning_list",
+               "spa_vowel_estimate" = "vowels_list",
+               "spa_vowel_std" = "vowels_std",
+               "spa_duration_estimate" = "dur_list",
+               "spa_duration_std" = "dur_std",
+               "spa_spectilt_estimate" = "st_list",
+               "spa_spectilt_std" = "st_std")
+head(df_spa)
+```
+
+Visualizations of significant interactions
+
+```{r}
+set_theme(base = theme_bw())
+spa_vowel_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "formant_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "Spanish perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+spa_vowel_pc1
+```
+```{r}
+cairo_pdf("figures/spa_vowel_pc1.pdf", family = "serif", width = 8, height = 4)
+spa_vowel_pc1
+dev.off()
+```
+
+
+
+## Now read in English data for a comparison with the monolingual speakers
+
+```{r}
+options(width = 10000)
+# read in data
+eng = read.csv("data/eng_r.csv", 
+                  stringsAsFactors = TRUE)
+
+later_blocks = eng %>%
+  filter(block!=0)
+
+model_lang_plot = glm(response_binary ~ formant_center*duration_center*spectilt_center*lang_profile, data = later_blocks, family = "binomial")
+model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*lang_profile + (1|partID),
+                   data = later_blocks, family = "binomial")
+summary(model_lang)
+
+# get list of all participants
+parts_df= read.csv("../blp/data/parts.csv", 
+                  stringsAsFactors = TRUE)
+parts = unique(parts_df$partID)
+
+# for loop that will calculate estimate for each participant for each acoustic measure and output df
+warning_list = c()
+vowels_list = c()
+vowels_std = c()
+st_list = c()
+st_std = c()
+dur_list = c()
+dur_std = c()
+parts_list = c()
+#lang_profile_list = c()
+
+for (i in parts){
+  if (i %in% later_blocks$partID) {
+    data = later_blocks %>%
+      filter(partID == i)
+    warn_found = as.character(myTryCatch(glm(response_binary ~ formant_center*duration_center*spectilt_center,
+                                             data = data, family = "binomial"))[2])
+    if (warn_found == "NULL") {
+      warning_list = append(warning_list, "0")
+    } else {
+      warning_list = append(warning_list, warn_found)
+    }
+    model = glm(response_binary ~ formant_center*duration_center*spectilt_center, data = data, family = "binomial")
+    slope_v = summary(model)$coefficients[2,1]
+    std_v = summary(model)$coefficients[2,2]
+    slope_dur = summary(model)$coefficients[3,1]
+    std_dur = summary(model)$coefficients[3,2]
+    slope_st = summary(model)$coefficients[4,1]
+    std_st = summary(model)$coefficients[4,2]
+    vowels_list = c(vowels_list, slope_v)
+    vowels_std = c(vowels_std, std_v)
+    parts_list = append(parts_list, i)
+    dur_list = c(dur_list, slope_dur)
+    dur_std = c(dur_std, std_dur)
+    st_list = c(st_list, slope_st)
+    st_std = c(st_std, std_st)
+    }
+}
+
+df_eng = data.frame(parts_list, #lang_profile_list,
+                    warning_list,
+                vowels_list, vowels_std, dur_list, dur_std, st_list, st_std)
+df_eng = df_eng %>% 
+        rename("partID" = "parts_list",
+               #"lang_profile" = "lang_profile_list",
+               "eng_warning" = "warning_list",
+               "eng_vowel_estimate" = "vowels_list",
+               "eng_vowel_std" = "vowels_std",
+               "eng_duration_estimate" = "dur_list",
+               "eng_duration_std" = "dur_std",
+               "eng_spectilt_estimate" = "st_list",
+               "eng_spectilt_std" = "st_std")
+head(df_eng)
+```
+
+Visualizations of significant interactions
+
+```{r}
+set_theme(base = theme_bw())
+eng_vowel_lang = plot_model(model_lang_plot, type = "pred", terms = c("formant_center", "lang_profile"),
+                            axis.title = c("Vowel quality steps", "% ponDIS"),
+           title = "English perception",
+           legend.title = "Language Profile",
+           pred.type = "re") +
+  scale_color_discrete(labels=c('L1 English', 'L3 English', 'Monolingual')) +
+  scale_x_continuous(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_vowel_lang
+```
+
+```{r}
+cairo_pdf("figures/eng_vowel_lang.pdf", family = "serif", width = 8, height = 4)
+eng_vowel_lang
+dev.off()
+```
+
+```{r}
+emmeans(model_lang_plot, list(pairwise ~ lang_profile*formant_center), adjust="tukey")
+ems = emmeans(model_lang_plot, c("lang_profile", "formant_center"), infer = c(T, T))
+emmeans::eff_size(ems, sigma = sigma(model_lang_plot), edf = df.residual(model_lang_plot))
+```
+
+
+```{r}
+set_theme(base = theme_bw())
+eng_vowel_dur_lang = plot_model(model_lang_plot, type = "pred", terms = c("formant_center", "lang_profile", "duration_center"), axis.title = c("Vowel quality steps", "% ponDIS"),
+           title = "English perception", legend.title = "Language Profile", pred.type = "re") +
+  scale_color_discrete(labels=c('L1 English', 'L3 English', 'Monolingual')) +
+  scale_x_continuous(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_vowel_dur_lang$facet$params$nrow=1
+
+eng_vowel_dur_lang$data$facet <- ifelse(eng_vowel_dur_lang$data$facet == "duration_center = -2", "Duration step 1",
+ifelse(eng_vowel_dur_lang$data$facet == "duration_center = -1", "Duration step 2",
+ifelse(eng_vowel_dur_lang$data$facet == "duration_center = 0", "Duration step 3",
+ifelse(eng_vowel_dur_lang$data$facet == "duration_center = 1", "Duration step 4",
+ifelse(eng_vowel_dur_lang$data$facet == "duration_center = 2", "Duration step 5", 99)))))
+
+eng_vowel_dur_lang
+```
+
+```{r}
+cairo_pdf("figures/eng_vowel_dur_lang.pdf", family = "serif", width = 10, height = 4)
+eng_vowel_dur_lang
+dev.off()
+```
+
+```{r}
+set_theme(base = theme_bw())
+eng_vowel_st_lang = plot_model(model_lang_plot, type = "pred", terms = c("formant_center", "lang_profile", "spectilt_center"), axis.title = c("Vowel quality steps", "% ponDIS"),
+           title = "English perception", legend.title = "Language Profile", pred.type = "re") +
+  scale_color_discrete(labels=c('L1 English', 'L3 English', 'Monolingual')) +
+  scale_x_continuous(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_vowel_st_lang$facet$params$nrow=1
+
+eng_vowel_st_lang$data$facet <- ifelse(eng_vowel_st_lang$data$facet == "spectilt_center = -2", "Spectral tilt step 1",
+ifelse(eng_vowel_st_lang$data$facet == "spectilt_center = -1", "Spectral tilt step 2",
+ifelse(eng_vowel_st_lang$data$facet == "spectilt_center = 0", "Spectral tilt step 3",
+ifelse(eng_vowel_st_lang$data$facet == "spectilt_center = 1", "Spectral tilt step 4",
+ifelse(eng_vowel_st_lang$data$facet == "spectilt_center = 2", "Spectral tilt step 5", 99)))))
+
+eng_vowel_st_lang
+```
+```{r}
+cairo_pdf("figures/eng_vowel_st_lang.pdf", family = "serif", width = 10, height = 4)
+eng_vowel_st_lang
+dev.off()
+```
+
+
+
+## Now look at English perception just across the trilingual speakers
+
+```{r}
+options(width = 10000)
+# read in data
+eng_tri = eng %>%
+  filter(block!=0, lang_profile!= "mono")
+
+model_lang_plot = glm(response_binary ~ formant_center*duration_center*spectilt_center*pc1 +
+                        formant_center*duration_center*spectilt_center*pc2, data = eng_tri, family = "binomial")
+model_lang = glmer(response_binary ~ formant_center*duration_center*spectilt_center*pc1 +
+                        formant_center*duration_center*spectilt_center*pc2 + (1|partID), data = eng_tri, family = "binomial")
+summary(model_lang)
+```
+
+Visualizations for significant interactions:
+
+```{r}
+set_theme(base = theme_bw())
+eng_vowel_pc1 = plot_model(model_lang_plot, type = "pred", terms = c("pc1 [all]", "formant_center"), axis.title = c("Principal Component 1", "% ponDIS"),
+           title = "English perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_vowel_pc1
+```
+```{r}
+cairo_pdf("figures/eng_vowel_pc1.pdf", family = "serif", width = 8, height = 4)
+eng_vowel_pc1
+dev.off()
+```
+
+```{r}
+set_theme(base = theme_bw())
+eng_dur_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "duration_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "English perception", legend.title = "Duration steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_dur_pc2
+```
+```{r}
+cairo_pdf("figures/eng_dur_pc2.pdf", family = "serif", width = 8, height = 4)
+eng_dur_pc2
+dev.off()
+```
+```{r}
+set_theme(base = theme_bw())
+eng_vowel_st_pc2 = plot_model(model_lang_plot, type = "pred", terms = c("pc2 [all]", "formant_center", "spectilt_center"), axis.title = c("Principal Component 2", "% ponDIS"),
+           title = "English perception", legend.title = "Vowel quality steps", pred.type = "re") +
+  scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_vowel_st_pc2$facet$params$nrow=1
+
+eng_vowel_st_pc2$data$facet <- ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = -2", "Spectral tilt step 1",
+ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = -1", "Spectral tilt step 2",
+ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = 0", "Spectral tilt step 3",
+ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = 1", "Spectral tilt step 4",
+ifelse(eng_vowel_st_pc2$data$facet == "spectilt_center = 2", "Spectral tilt step 5", 99)))))
+
+eng_vowel_st_pc2
+```
+```{r}
+cairo_pdf("figures/eng_vowel_st_pc2.pdf", family = "serif", width = 8, height = 4)
+eng_vowel_st_pc2
+dev.off()
+```
+
+## Now combine into larger df
+
+```{r}
+df_all = merge(df_cat, df_spa, by = "partID", all.x = TRUE, all.y = TRUE)
+df_all = merge(df_all, df_eng, by = "partID", all.x = TRUE, all.y = TRUE)
+sample(df_all)
+```
+
+## Now combine with pca and lang_profile
+```{r}
+lang_info = eng %>%
+  group_by(partID) %>%
+  select(partID, lang_profile, pc1, pc2) %>%
+  unique()
+
+df_blp = merge(df_all, lang_info, by = "partID")
+write.csv(df_blp, "data/estimates_and_blp.csv", row.names = FALSE)
+head(df_blp)
+```
+
+
