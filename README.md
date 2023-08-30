@@ -13,14 +13,23 @@ crosslinguistic influence. Principal component analysis (performed in [`blp`](ht
 
 ## Repo structure
 
-**PCA of Bilingual Language Profile**:
+**PCA of Bilingual Language Profile**: Principal Components Analysis of trilingual BLP data.
+- Qualtrics data is cleaned with `1_cleanQualtrics.ipynb`, which takes in `data/qualtrics.csv` and saves the data file `blp_cleaned.csv`.
+- Summary BLP information about each of the three participant groups is obtained with `2_summaryinfo.ipynb`, which takes in `data/blp_cleaned.csv` and `data/parts.csv` (the list of participants that completed all sessions) and provides summary info for each question of the BLP inline)
+- Dimensionality of the BLP is reduced with `3_blp_pca.ipynb`, which takes in `data/blp_cleaned.csv`, runs PCA, outputs a figure that shows how 2 components separate participants well according to their language profile labels `figures/pca_colors.jpg`, saves each participants loadings for the 2 components `data/pca_blp.csv', saves a loading matrix with the explained variance of each BLP question to each component `data/loading_matrix.csv', and then interprets the 2 components
 
 **Production**: Bayesian multilevel modeling of trilingual acoustic data obtained in sentence elicitation task.
 - csvs with sentence orders are saved to `sentence_orders` from raw PyschoPy data files (in `psychopy_csvs` and `numbers_files`) using `1_psychopydata_to_txt.ipynb` (`1.1_psychopydata_to_text_keepTrials.ipynb` retains practice trial sentences in output)
-- textgrids were aligned with these sentences, hand-corrected, and annotated for vowels of interest, stress, and syllable, then saved to `textgrids`
-- acoustic measures were extracted with voicesauce and saved in `voicesauce_txt` 
-- `2_acoustic_measures.ipynb` is used to combine acoustic measures from voicesauce with annotated info from textgrids. Vowel formants and normalized with DeltaF normalization and acoustic measures are submitted to PCA. A master df (`data/master_df.csv`) is saved with vowel productions from the target words, principal components of acoustic measures, and participants' PCA loadings from the BLP.
+- TextGrids were aligned with these sentences, hand-corrected, and annotated for vowels of interest, stress, and syllable, then saved to `textgrids`
+- Acoustic measures were extracted with voicesauce and saved in `voicesauce_txt` 
+- `2_acoustic_measures.ipynb` is used to combine acoustic measures from voicesauce with annotated info from TextGrids. Vowel formants and normalized with DeltaF normalization and acoustic measures are submitted to PCA. A master df (`data/master_df.csv`) is saved with vowel productions from the target words, principal components of acoustic measures, and participants' PCA loadings from the BLP.
 - Bayesian multilevel models predicting whether a vowel is stressed or unstressed are run in `3_cat_bayes.Rmd` (Catalan data), `4_spa_bayes.Rmd` (Spanish data), `5_eng_tri_bayes.Rmd` (Trilingual English data), and `6_eng_all_bayes.Rmd` (Trilingual and monolingual English data). Visualizations of significant predictors are saved in `figures`.
+
+**Perception**: Mixed effects logistic regression of perceptual data obtained with word identification task.
+- Raw perception data (`data/english.csv`, `data/catalan.csv`, and `data/spanish.csv`) is cleaned and prepared for logreg analysis in `1_ready_for_R.ipynb`, cleaned data are saved as `data/eng_r.csv`, `data/cat_r.csv`, and `data/spa_r.csv`
+- `2_logit.Rmd` (and html `2_logit.html`) get cue-weight estimates for each participant for each acoustic measure for visualization (saved as `data/estimates_and_blp.csv`) and logreg outputs for specified models
+- Estimates by participants are visualized across BLP component loadings in `3_visualizations_PCA.ipynb`
+- Heatmaps of perceptual across cues that were manipulated simultaneously are produced in `4_heatmap.ipynb`
 
 
 ## References
