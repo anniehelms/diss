@@ -1,0 +1,350 @@
+---
+title: "Logit models of production data with Bayesian predictive modelling"
+author: "Annie Helms (annie_helms@berkeley.edu)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, dev = "cairo_pdf", out.height = 600)
+options(scipen = 999) # avoid scientific notation
+```
+
+Library packages
+
+```{r message = FALSE, warning = FALSE}
+library(lmerTest) #mixed effects linear regression
+library(dplyr)
+library(ggplot2)
+library(Cairo)
+library(effects)
+library(ragg)
+library(gridExtra)
+library(ggside)
+library(sjPlot)
+library(emmeans)
+library(ggstatsplot)
+library(pscl)
+library(bayesplot)
+library(brms)
+library(ggtext)
+library(kableExtra) # formats dataframes in html output
+```
+
+Set working directory.
+
+```{r message = FALSE, echo = FALSE}
+setwd("C:/Users/atarv/Documents/github/diss/production/")
+```
+
+
+```{r}
+options(width = 10000)
+data = read.csv("data/master_df.csv", 
+                  stringsAsFactors = TRUE)
+head(data)
+```
+
+## Catalan production
+
+```{r}
+cat = data %>%
+  filter(Language=="cat")
+head(cat)
+
+```
+
+```{r}
+cat_formula = "stress ~ v_dur_period*pc1*syllable + v_dur_period*pc2*syllable + f0*pc1*syllable + f0*pc2*syllable + syl_dur*pc1*syllable + syl_dur*pc2*syllable + sF1_norm_center*pc1*syllable + sF1_norm_center*pc2*syllable + sF2_norm_center*pc1*syllable + sF2_norm_center*pc2*syllable + (v_dur_period * syllable + f0 * syllable + syl_dur * syllable + sF1_norm_center*syllable + sF2_norm_center*syllable|partID)"
+
+cat_priors <- get_prior(cat_formula,cat,family=bernoulli())
+
+cat_model <- brm(formula=bf(cat_formula,autocor = ~ 0),data=cat, family=bernoulli(), 
+            prior=cat_priors, cores = 8, save_pars = save_pars(all = TRUE), iter=4000)
+```
+
+Examine results
+
+```{r}
+summary(cat_model)
+bayes_R2(cat_model)
+```
+
+Visualize results
+
+```{r}
+cat_posterior <- as.array(cat_model)  # prepare to plot the brm result
+dim(cat_posterior)
+dimnames(cat_posterior)$variable[1:50]
+```
+
+```{r}
+cat_coeff_plot = mcmc_areas(cat_posterior, pars = c("b_v_dur_period", "b_pc1", "b_syllableult", "b_pc2", "b_f0", "b_syl_dur", "b_sF1_norm_center", "b_sF2_norm_center", "b_v_dur_period:pc1", "b_v_dur_period:syllableult", "b_pc1:syllableult", "b_v_dur_period:pc2", "b_syllableult:pc2", "b_pc1:f0", "b_syllableult:f0", "b_pc2:f0", "b_pc1:syl_dur", "b_syllableult:syl_dur", "b_pc2:syl_dur", "b_pc1:sF1_norm_center", "b_syllableult:sF1_norm_center", "b_pc2:sF1_norm_center","b_pc1:sF2_norm_center", "b_syllableult:sF2_norm_center", "b_pc2:sF2_norm_center", "b_v_dur_period:pc1:syllableult", "b_v_dur_period:syllableult:pc2", "b_pc1:syllableult:f0", "b_syllableult:pc2:f0", "b_pc1:syllableult:syl_dur", "b_syllableult:pc2:syl_dur", "b_pc1:syllableult:sF1_norm_center", "b_syllableult:pc2:sF1_norm_center", "b_pc1:syllableult:sF2_norm_center", "b_syllableult:pc2:sF2_norm_center"), 
+          prob = 0.8, # 80% intervals
+          prob_outer = 0.95, # 95%
+          point_est = "median") +
+scale_y_discrete(labels=c("Ultimate syllable:PC2:F2", "PC1:Ultimate syllable:F2", "Ultimate syllable:PC2:F1", "PC1:Ultimate syllable:F1", "Ultimate syllable:PC2:Syllable duration", "PC1:Ultimate syllable:Syllable duration", "Ultimate syllable:PC2:F0", "PC1:Ultimate syllable:F0", "Vowel duration (periodic):Ultimate syllable:PC2", "Vowel duration (periodic):PC1:Ultimate syllable", "PC2:F2", "Ultimate syllable:F2","PC1:F2", "PC2:F1", "Ultimate syllable:F1", "PC1:F1", "PC2:Syllable duration", "Ultimate syllable:Syllable duration", "PC1:Syllable duration", "PC2:F0", "Ultimate syllable:F0", "PC1:F0", "Ultimate syllable:PC2", "Vowel duration (periodic):PC2", "PC1:Ultimate syllable", "Vowel duration (periodic):Ultimate syllable", "Vowel duration (periodic):PC1", "F2", "F1", "Syllable duration", "F0", "PC2", "Ultimate syllable", "PC1", "Vowel duration (periodic)"), limits=rev) +
+  labs(title = "Coefficients of Catalan production", x ="Coefficient, sd(Stress)") +theme(plot.title=element_text(hjust = 0.5))
+cat_coeff_plot
+```
+```{r}
+cairo_pdf("figures/cat_coeff.pdf", family = "serif", width = 8, height = 6)
+cat_coeff_plot
+dev.off()
+```
+```{r}
+cat %>%
+  select(pc1, f0, sF1_norm_center, sF2_norm_center, v_dur_period, syl_dur)%>%
+  summarize(mean_pc1 = mean(pc1),
+            low_sd_pc1 = mean(pc1)-sd(pc1),
+            high_sd_pc1 = mean(pc1)+sd(pc1),
+            low_sd_f0 = mean(f0)-sd(f0),
+            high_sd_f0 = mean(f0)+sd(f0),
+            low_sd_f1 = mean(sF1_norm_center)-sd(sF1_norm_center),
+            high_sd_f1 = mean(sF1_norm_center)+sd(sF1_norm_center),
+            low_sd_f2 = mean(sF2_norm_center)-sd(sF2_norm_center),
+            high_sd_f2 = mean(sF2_norm_center)+sd(sF2_norm_center),
+            low_sd_vdur = mean(v_dur_period)-sd(v_dur_period),
+            high_sd_vdur = mean(v_dur_period)+sd(v_dur_period),
+            low_sd_syldur = mean(syl_dur)-sd(syl_dur),
+            high_sd_syldur = mean(syl_dur)+sd(syl_dur))
+```
+```{r}
+conditions_pc1 = data.frame(pc1 = c(-5.394, -0.4445, 4.505))
+by_subject = conditional_effects(cat_model, effects = c("f0", "sF1_norm_center", "sF2_norm_center", "v_dur_period", "syl_dur"), conditions = conditions_pc1)
+```
+
+```{r fig.width=18, fig.height=6}
+cat_f0 = plot(by_subject, plot = FALSE)[[1]] + theme(legend.position = "none") + xlim(-1.32201, 1.32147)
+cat_f1= plot(by_subject, plot = FALSE)[[2]] + theme(legend.position = "none") + xlim(-0.244588, 0.09811737)
+cat_f2 =  plot(by_subject, plot = FALSE)[[3]] + theme(legend.position = "none") + xlim(-0.1204947, 0.692393)
+cat_vdur = plot(by_subject, plot = FALSE)[[4]] + theme(legend.position = "none")+xlim(-2.629341, 2.866584)
+cat_syldur = plot(by_subject, plot = FALSE)[[5]] + theme(legend.position = "none") + xlim(-1.63065, 0.9310102)
+
+grid.newpage()
+grid.draw(cbind(ggplotGrob(cat_f0), ggplotGrob(cat_f1), ggplotGrob(cat_f2), ggplotGrob(cat_vdur), ggplotGrob(cat_syldur), size = "last"))
+#   labs(title = "Catalan production", x = "Syllable duration", y = "Proportion stressed") +
+#   # guides(color=guide_legend(title="Syllable"), fill = 'none') +
+#   # scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+#   theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+# cat_by_parts
+```
+
+
+```{r}
+cat_syllable_f0 = conditional_effects(cat_model, effects = "f0:syllable", int_conditions = "syllable")
+```
+
+```{r}
+cat_syllable_f0_plot = plot(cat_syllable_f0, plot = FALSE)[[1]] + labs(title = "Catalan production", x = "F0", y = "Proportion stressed") + guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_syllable_f0_plot
+```
+
+
+```{r}
+cairo_pdf("figures/cat_syllable_f0_production.pdf", family = "serif", width = 8, height = 6)
+cat_syllable_f0_plot
+dev.off()
+```
+
+
+```{r}
+emt <- emtrends(cat_model, "syllable", var = "f0")
+emt
+pairs(emt)
+```
+
+```{r}
+emt <- emtrends(cat_model, "syllable", var = "sF1_norm_center")
+emt
+pairs(emt)
+```
+
+```{r}
+cat_syllable_f1 = conditional_effects(cat_model, effects = "sF1_norm_center:syllable", int_conditions = "syllable")
+```
+
+```{r}
+cat_syllable_f1_plot = plot(cat_syllable_f1, plot = FALSE)[[1]] + labs(title = "Catalan production", x = "Normalized F1", y = "Proportion stressed") + guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_syllable_f1_plot
+```
+```{r}
+cairo_pdf("figures/cat_syllable_f1_production.pdf", family = "serif", width = 8, height = 6)
+cat_syllable_f1_plot
+dev.off()
+```
+```{r}
+emt <- emtrends(cat_model, "syllable", var = "sF2_norm_center")
+emt
+pairs(emt)
+```
+
+
+```{r}
+cat_syllable_f2 = conditional_effects(cat_model, effects = "sF2_norm_center:syllable", int_conditions = "syllable")
+```
+
+```{r}
+cat_syllable_f2_plot = plot(cat_syllable_f2, plot = FALSE)[[1]] + labs(title = "Catalan production", x = "Normalized F2", y = "Proportion stressed") + guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_syllable_f2_plot
+```
+```{r}
+cairo_pdf("figures/cat_syllable_f2_production.pdf", family = "serif", width = 8, height = 6)
+cat_syllable_f2_plot
+dev.off()
+```
+
+```{r}
+cat_dur_pc1 = conditional_effects(cat_model, effects = "pc1:v_dur_period", int_conditions = "pc1")
+```
+
+```{r}
+cat_dur_pc1_plot = plot(cat_dur_pc1, plot = FALSE)[[1]] + labs(title = "Catalan production", x = "PC1", y = "Proportion stressed") + guides(color=guide_legend(title="Vowel duration (periodic)"), fill = 'none') +
+  scale_color_discrete(labels=c('+1 SD', 'mean', '-1 SD')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_dur_pc1_plot
+```
+
+```{r}
+cairo_pdf("figures/cat_vdur_pc1_production.pdf", family = "serif", width = 8, height = 6)
+cat_dur_pc1_plot
+dev.off()
+```
+
+```{r}
+cat_f1_pc1 = conditional_effects(cat_model, effects = "sF1_norm_center:pc1", int_conditions = "pc1")
+```
+
+```{r}
+cat_f1_pc1_plot = plot(cat_f1_pc1, plot = FALSE)[[1]] + labs(title = "Catalan production", x = "Normalized F1", y = "Proportion stressed") + guides(color=guide_legend(title="PC1"), fill = 'none') +
+  scale_color_discrete(labels=c('+1 SD', 'mean', '-1 SD')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_f1_pc1_plot
+```
+
+
+```{r}
+cairo_pdf("figures/cat_f1_pc1_production.pdf", family = "serif", width = 8, height = 6)
+cat_f1_pc1_plot
+dev.off()
+```
+```{r}
+cat_f1_pc2 = conditional_effects(cat_model, effects = "sF1_norm_center:pc2", int_conditions = "pc2")
+```
+
+```{r}
+cat_f1_pc2_plot = plot(cat_f1_pc2, plot = FALSE)[[1]] + labs(title = "Catalan production", x = "Normalized F1", y = "Proportion stressed") + guides(color=guide_legend(title="PC2"), fill = 'none') +
+  scale_color_discrete(labels=c('+1 SD', 'mean', '-1 SD')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_f1_pc2_plot
+```
+
+```{r}
+cat %>%
+  select(pc1)%>%
+  summarize(mean = mean(pc1),
+            low_sd = mean(pc1)-sd(pc1),
+            high_sd = mean(pc1)+sd(pc1))
+  
+```
+```{r}
+emt <- emtrends(cat_model, "syllable", var = "v_dur_period")
+emt
+pairs(emt)
+```
+
+```{r}
+conditions = data.frame(pc1 = c(-5.394, -0.4445, 4.505))
+cat_dur_pc1_syllable = conditional_effects(cat_model, effects = "v_dur_period:syllable", conditions = conditions)
+```
+
+```{r}
+cat_dur_pc1_syllable_plot = plot(cat_dur_pc1_syllable, plot = FALSE)[[1]] + labs(title = "Catalan production", x = "Vowel duration (periodic)", y = "Proportion stressed") +
+  guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+cat_dur_pc1_syllable_plot$data$cond__ <- ifelse(cat_dur_pc1_syllable_plot$data$cond__ == "1", "PC1 (-1 SD)",
+ifelse(cat_dur_pc1_syllable_plot$data$cond__ == "2", "PC1 (mean)",
+ifelse(cat_dur_pc1_syllable_plot$data$cond__ == "3", "PC1 (+1 SD)", 99)))
+
+
+cat_dur_pc1_syllable_plot$data$cond__ <- factor(cat_dur_pc1_syllable_plot$data$cond__, levels = c("PC1 (-1 SD)", "PC1 (mean)", "PC1 (+1 SD)"))
+
+cat_dur_pc1_syllable_plot
+```
+
+```{r}
+cairo_pdf("figures/cat_dur_pc1_syllable_production.pdf", family = "serif", width = 8, height = 6)
+cat_dur_pc1_syllable_plot
+dev.off()
+```
+
+```{r}
+emt <- emtrends(cat_model, "syllable", var = "syl_dur")
+emt
+pairs(emt)
+```
+
+```{r}
+conditions = data.frame(pc1 = c(-5.394, -0.4445, 4.505))
+cat_syldur_pc1_syllable = conditional_effects(cat_model, effects = "syl_dur:syllable", conditions = conditions)
+```
+
+```{r}
+cat_syldur_pc1_syllable_plot = plot(cat_syldur_pc1_syllable, plot = FALSE)[[1]] + labs(title = "Catalan production", x = "Vowel duration (periodic)", y = "Proportion stressed") +
+  guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+cat_syldur_pc1_syllable_plot$data$cond__ <- ifelse(cat_syldur_pc1_syllable_plot$data$cond__ == "1", "PC1 (-1 SD)",
+ifelse(cat_syldur_pc1_syllable_plot$data$cond__ == "2", "PC1 (mean)",
+ifelse(cat_syldur_pc1_syllable_plot$data$cond__ == "3", "PC1 (+1 SD)", 99)))
+
+
+cat_syldur_pc1_syllable_plot$data$cond__ <- factor(cat_syldur_pc1_syllable_plot$data$cond__, levels = c("PC1 (-1 SD)", "PC1 (mean)", "PC1 (+1 SD)"))
+
+cat_syldur_pc1_syllable_plot
+```
+
+```{r}
+cairo_pdf("figures/cat_syldur_pc1_syllable_production.pdf", family = "serif", width = 8, height = 6)
+cat_syldur_pc1_syllable_plot
+dev.off()
+```
+
+
+
+
+
+```{r}
+emt <- emtrends(cat_model, "syllable", var = "pc1")
+emt
+pairs(emt)
+```
+
+
+```{r}
+check = cat %>%
+  mutate(pc1_binary = case_when(
+    pc1 < 0   ~ "low" ,
+    pc1 >0 ~ "high"))
+
+check %>%
+  group_by(pc1_binary, syllable, stress) %>% 
+  count()
+```
+
+
+
