@@ -11,9 +11,19 @@ with duration and vowel quality being prominent cues. Since the majority of mode
 The results of the production and perception tasks indicate that relative language dominance does affect cue-weighting to a different extent in each language in the trilinguals’ repertoires. There was additionally evidence for regressive transfer of cue-weighting in both production and perception, indicating that all languages in a trilingual’s repertoire are susceptible to
 crosslinguistic influence. Principal component analysis (performed in [`blp`](https://github.com/anniehelms/diss/tree/main/blp)) is shown to be a viable way to extend the Bilingual Language Profile (Birdsong et al., 2012) and obtain relative dominance scores for trilinguals. Lastly, through a comparison of theoretical frameworks of L3 phonetics and phonology, the Attrition & Drift in Access, Production, and Perception Theory (ADAPPT; de Leeuw & Chang, in press) was determined to most closely align with the findings of this study.
 
+## Repo structure
+
+**PCA of Bilingual Language Profile**:
+
+**Production**: Bayesian multilevel modeling of trilingual acoustic data obtained in sentence elicitation task.
+- csvs with sentence orders are saved to `sentence_orders` from raw PyschoPy data files (in `psychopy_csvs` and `numbers_files`) using `1_psychopydata_to_txt.ipynb` (`1.1_psychopydata_to_text_keepTrials.ipynb` retains practice trial sentences in output)
+- textgrids were aligned with these sentences, hand-corrected, and annotated for vowels of interest, stress, and syllable, then saved to `textgrids`
+- acoustic measures were extracted with voicesauce and saved in `voicesauce_txt` 
+- `2_acoustic_measures.ipynb` is used to combine acoustic measures from voicesauce with annotated info from textgrids. Vowel formants and normalized with DeltaF normalization and acoustic measures are submitted to PCA. A master df (`data/master_df.csv`) is saved with vowel productions from the target words, principal components of acoustic measures, and participants' PCA loadings from the BLP.
+- Bayesian multilevel models predicting whether a vowel is stressed or unstressed are run in `3_cat_bayes.Rmd` (Catalan data), `4_spa_bayes.Rmd` (Spanish data), `5_eng_tri_bayes.Rmd` (Trilingual English data), and `6_eng_all_bayes.Rmd` (Trilingual and monolingual English data). Visualizations of significant predictors are saved in `figures`.
 
 
-*References*
+## References
 
 Amengual, M. (2021). The acoustic realization of language-specific phonological categories despite dynamic cross-linguistic influence in bilingual and trilingual speech. The Journal of the Acoustical Society of America, 149 (2), 1271–1284.
 
