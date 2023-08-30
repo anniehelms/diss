@@ -1,0 +1,237 @@
+---
+title: "Logit models of production data with Bayesian predictive modelling - English trilinguals"
+author: "Annie Helms (annie_helms@berkeley.edu)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, dev = "cairo_pdf", out.height = 600)
+options(scipen = 999) # avoid scientific notation
+```
+
+Library packages
+
+```{r message = FALSE, warning = FALSE}
+library(lmerTest) #mixed effects linear regression
+library(dplyr)
+library(ggplot2)
+library(Cairo)
+library(effects)
+library(ragg)
+library(gridExtra)
+library(ggside)
+library(sjPlot)
+library(emmeans)
+library(ggstatsplot)
+library(pscl)
+library(bayesplot)
+library(brms)
+library(ggtext)
+library(kableExtra) # formats dataframes in html output
+```
+
+Set working directory.
+
+```{r message = FALSE, echo = FALSE}
+setwd("C:/Users/atarv/Documents/github/diss/production/")
+```
+
+
+```{r}
+options(width = 10000)
+data = read.csv("data/big_PCA_forR.csv", 
+                  stringsAsFactors = TRUE)
+head(data)
+```
+
+## English trilingual production
+
+```{r}
+eng = data %>%
+  filter(Language=="eng" & lang_profile!="mono")
+head(eng)
+
+```
+
+```{r}
+eng_formula = "stress ~ dur_period*pc1*syllable + dur_period*pc2*syllable + f0*pc1*syllable + f0*pc2*syllable + vowel_periph*pc1*syllable + vowel_periph*pc2*syllable + (dur_period * syllable + f0 * syllable + vowel_periph * syllable|partID)"
+
+eng_priors <- get_prior(eng_formula,eng,family=bernoulli())
+
+eng_model <- brm(formula=bf(eng_formula,autocor = ~ 0),data=eng, family=bernoulli(), 
+            prior=eng_priors, cores = 8, save_pars = save_pars(all = TRUE), iter=4000)
+```
+
+Examine results
+
+```{r}
+summary(eng_model)
+bayes_R2(eng_model)
+```
+
+Visualize results
+
+```{r}
+eng_posterior <- as.array(eng_model)  # prepare to plot the brm result
+dim(eng_posterior)
+dimnames(eng_posterior)$variable[1:30]
+```
+
+```{r}
+eng_coeff_plot = mcmc_areas(eng_posterior, pars = c("b_dur_period", "b_pc1", "b_syllableult", "b_pc2", "b_f0",  "b_vowel_periph", "b_dur_period:pc1",  "b_dur_period:syllableult", "b_pc1:syllableult", "b_dur_period:pc2", "b_syllableult:pc2", "b_pc1:f0", "b_syllableult:f0", "b_pc2:f0", "b_pc1:vowel_periph", "b_syllableult:vowel_periph", "b_pc2:vowel_periph", "b_dur_period:pc1:syllableult", "b_dur_period:syllableult:pc2", "b_pc1:syllableult:f0", "b_syllableult:pc2:f0", "b_pc1:syllableult:vowel_periph", "b_syllableult:pc2:vowel_periph"), 
+          prob = 0.8, # 80% intervals
+          prob_outer = 0.95, # 95%
+          point_est = "median") +
+  scale_y_discrete(labels=c("Ultimate syllable:PC2:Vowel peripherality", "PC1:Ultimate syllable: Vowel peripherality", "Ultimate syllable:PC2:F0", "PC1:Ultimate syllable:F0", "Duration (periodic):Ultimate syllable:PC2", "Duration (periodic):PC1:Ultimate syllable", "PC2:Vowel peripherality", "Ultimate syllable:Vowel peripherality", "PC1:Vowel peripherality", "PC2:F0", "Ultimate syllable:F0", "PC1:F0", "Ultimate syllable:PC2", "Duration (periodic):PC2", "PC1:Ultimate syllable","Duration (periodic):Ultimate syllable", "Duration (periodic):PC1", "Vowel peripherality", "F0","PC2","Ultimate syllable", "PC1", "Duration (periodic)"), limits = rev) +
+  labs(title = "Coefficients of English trilingual production", x ="Coefficient, sd(Stress)") +theme(plot.title=element_text(hjust = 0.5))
+eng_coeff_plot
+```
+
+```{r}
+cairo_pdf("figures/eng_coeff.pdf", family = "serif", width = 8, height = 6)
+eng_coeff_plot
+dev.off()
+```
+
+```{r}
+eng_syllable_f0 = conditional_effects(eng_model, effects = "f0:syllable", int_conditions = "syllable")
+```
+
+```{r}
+eng_syllable_f0_plot = plot(eng_syllable_f0, plot = FALSE)[[1]] + labs(title = "English trilingual production", x = "F0", y = "Proportion stressed") + guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_syllable_f0_plot
+```
+
+```{r}
+cairo_pdf("figures/eng_syllable_f0_production.pdf", family = "serif", width = 8, height = 6)
+eng_syllable_f0_plot
+dev.off()
+```
+
+
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "f0")
+emt
+pairs(emt)
+```
+
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "pc1")
+emt
+pairs(emt)
+```
+
+```{r}
+check = eng %>%
+  mutate(pc1_binary = case_when(
+    pc1 < 0   ~ "low" ,
+    pc1 >0 ~ "high"))
+
+check %>%
+  group_by(pc1_binary, syllable, stress) %>% 
+  count()
+```
+
+
+```{r}
+eng_vowel_pc1 = conditional_effects(eng_model, effects = "pc1:vowel_periph", int_conditions = "pc1")
+```
+
+```{r}
+eng_vowel_pc1_plot = plot(eng_vowel_pc1, plot = FALSE)[[1]] + labs(title = "English trilingual production", x = "PC1", y = "Proportion stressed") + guides(color=guide_legend(title="Vowel peripherality"), fill = 'none') +
+  scale_color_discrete(breaks = c(-1.77, -0.54, 0.69), labels=c('-1 SD', 'mean', '+1 SD')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_vowel_pc1_plot
+```
+
+```{r}
+cairo_pdf("figures/eng_vowel_pc1_production.pdf", family = "serif", width = 8, height = 6)
+eng_vowel_pc1_plot
+dev.off()
+```
+
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "dur_period")
+emt
+pairs(emt)
+```
+
+```{r}
+eng %>%
+  select(pc1)%>%
+  summarize(mean = mean(pc1),
+            low_sd = mean(pc1)-sd(pc1),
+            high_sd = mean(pc1)+sd(pc1))
+  
+```
+
+
+```{r}
+conditions_pc1 = data.frame(pc1 = c(-4.582793, 0.3705979, 5.323989))
+eng_dur_pc1_syllable = conditional_effects(eng_model, effects = "dur_period:syllable", conditions = conditions_pc1)
+```
+
+```{r}
+eng_dur_pc1_syllable_plot = plot(eng_dur_pc1_syllable, plot = FALSE)[[1]] + labs(title = "English trilingual production", x = "Duration (periodic)", y = "Proportion stressed") +
+  guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_dur_pc1_syllable_plot$data$cond__ <- ifelse(eng_dur_pc1_syllable_plot$data$cond__ == "1", "PC1 (-1 SD)",
+ifelse(eng_dur_pc1_syllable_plot$data$cond__ == "2", "PC1 (mean)",
+ifelse(eng_dur_pc1_syllable_plot$data$cond__ == "3", "PC1 (+1 SD)", 99)))
+
+eng_dur_pc1_syllable_plot$data$cond__ <- factor(eng_dur_pc1_syllable_plot$data$cond__, levels = c("PC1 (-1 SD)", "PC1 (mean)", "PC1 (+1 SD)"))
+
+eng_dur_pc1_syllable_plot
+```
+
+```{r}
+cairo_pdf("figures/eng_dur_pc1_syllable_production.pdf", family = "serif", width = 8, height = 6)
+eng_dur_pc1_syllable_plot
+dev.off()
+```
+```{r}
+eng %>%
+  select(pc2)%>%
+  summarize(mean = mean(pc2),
+            low_sd = mean(pc2)-sd(pc2),
+            high_sd = mean(pc2)+sd(pc2))
+  
+```
+
+
+```{r}
+conditions_pc2 = data.frame(pc2 = c(-2.50963, -0.01989694, 2.469836))
+eng_dur_pc2_syllable = conditional_effects(eng_model, effects = "dur_period:syllable", conditions = conditions_pc2)
+```
+
+```{r}
+eng_dur_pc2_syllable_plot = plot(eng_dur_pc2_syllable, plot = FALSE)[[1]] + labs(title = "English trilingual production", x = "Duration (periodic)", y = "Proportion stressed") +
+  guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_dur_pc2_syllable_plot$data$cond__ <- ifelse(eng_dur_pc2_syllable_plot$data$cond__ == "1", "PC2 (-1 SD)",
+ifelse(eng_dur_pc2_syllable_plot$data$cond__ == "2", "PC2 (mean)",
+ifelse(eng_dur_pc2_syllable_plot$data$cond__ == "3", "PC2 (+1 SD)", 99)))
+
+eng_dur_pc2_syllable_plot$data$cond__ <- factor(eng_dur_pc2_syllable_plot$data$cond__, levels = c("PC2 (-1 SD)", "PC2 (mean)", "PC2 (+1 SD)"))
+
+eng_dur_pc2_syllable_plot
+```
+
+```{r}
+cairo_pdf("figures/eng_dur_pc2_syllable_production.pdf", family = "serif", width = 8, height = 6)
+eng_dur_pc2_syllable_plot
+dev.off()
+```
+

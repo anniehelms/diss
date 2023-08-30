@@ -41,8 +41,6 @@ setwd("C:/Users/atarv/Documents/github/diss/production/")
 ```
 
 
-## First read in production data
-
 ```{r}
 options(width = 10000)
 data = read.csv("data/big_PCA_forR.csv", 
@@ -50,13 +48,7 @@ data = read.csv("data/big_PCA_forR.csv",
 head(data)
 ```
 
-```{r}
-data = data %>%
-  mutate(dur_period = c(scale(dur_period)),
-         f0_spectilt = c(scale(f0_spectilt)),
-         vowel_periph = c(scale(vowel_periph)))
-head(data)
-```
+## Catalan production
 
 ```{r}
 cat = data %>%
@@ -66,7 +58,7 @@ head(cat)
 ```
 
 ```{r}
-cat_model_plot= glm(stress ~ dur_period*pc1*syllable + dur_period*pc2*syllable + f0_spectilt*pc1*syllable + f0_spectilt*pc2*syllable + vowel_periph*pc1*syllable + vowel_periph*pc2*syllable,
+cat_model_plot= glmer(stress ~ dur_period*pc1*syllable + dur_period*pc2*syllable + f0*pc1*syllable + f0*pc2*syllable + vowel_periph*pc1*syllable + vowel_periph*pc2*syllable + (dur_period * syllable + f0 * syllable + vowel_periph * syllable|partID),
                          data = cat, family = "binomial")
 summary(cat_model_plot)
 ```
@@ -87,8 +79,8 @@ cat_pc1_dur_syllable
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 set_theme(base = theme_bw())
-cat_f0_syl = plot_model(cat_model_plot, type = "pred", terms = c("f0_spectilt", "syllable"), axis.title = c("F0", "% stressed"),
-           title = "Catalan production - F0",
+cat_f0_syl = plot_model(cat_model_plot, type = "pred", terms = c("f0", "syllable"), axis.title = c("Low F0", "% stressed"),
+           title = "Catalan production - Low F0",
            #legend.title = "Steps",
            pred.type = "re") +
   #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
@@ -100,7 +92,7 @@ cat_f0_syl
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 set_theme(base = theme_bw())
-cat_vowel = plot_model(cat_model_plot, type = "pred", terms = c("vowel_periph"), axis.title = c("Vowel peripherity", "% stressed"),
+cat_vowel = plot_model(cat_model_plot, type = "pred", terms = c("vowel_periph", "syllable"), axis.title = c("Vowel peripherity", "% stressed"),
            title = "Catalan production - Vowel peripherity",
            #legend.title = "Steps",
            pred.type = "re") +
@@ -110,20 +102,21 @@ cat_vowel = plot_model(cat_model_plot, type = "pred", terms = c("vowel_periph"),
 cat_vowel
 ```
 
+## Spanish production
 
 ```{r}
 spa = data %>%
   filter(Language == "spa")
-spa_model_plot= glm(stress ~ dur_period*pc1*syllable + dur_period*pc2*syllable + f0_spectilt*pc1*syllable + f0_spectilt*pc2*syllable +
-                      vowel_periph*pc1*syllable + vowel_periph*pc2*syllable,
+spa_model_plot= glmer(stress ~ dur_period*pc1*syllable + dur_period*pc2*syllable + f0*pc1*syllable + f0*pc2*syllable +
+                      vowel_periph*pc1*syllable + vowel_periph*pc2*syllable+ (dur_period * syllable + f0 * syllable + vowel_periph * syllable|partID),
                     data = spa, family = "binomial")
 summary(spa_model_plot)
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 set_theme(base = theme_bw())
-spa_pc1_f0_syllable = plot_model(spa_model_plot, type = "pred", terms = c("pc1 [all]", "f0_spectilt", "syllable"), axis.title = c("Principal Component 1", "% stressed"),
-           title = "Spanish production - F0",
+spa_pc1_f0_syllable = plot_model(spa_model_plot, type = "pred", terms = c("pc1 [all]", "dur_period", "syllable"), axis.title = c("Principal Component 1", "% stressed"),
+           title = "Spanish production - Duration",
            #legend.title = "Steps",
            pred.type = "re") +
   #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
@@ -134,7 +127,7 @@ spa_pc1_f0_syllable
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 set_theme(base = theme_bw())
-spa_pc1_dur_syllable = plot_model(spa_model_plot, type = "pred", terms = c("pc1 [all]", "dur_period", "syllable"), axis.title = c("Principal Component 1", "% stressed"),
+spa_pc1_dur_syllable = plot_model(spa_model_plot, type = "pred", terms = c("pc1 [all]", "dur_period"), axis.title = c("Principal Component 1", "% stressed"),
            title = "Spanish production - Duration",
            #legend.title = "Steps",
            pred.type = "re") +
@@ -146,8 +139,8 @@ spa_pc1_dur_syllable
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 set_theme(base = theme_bw())
-spa_vowel_syllable = plot_model(spa_model_plot, type = "pred", terms = c("vowel_periph", "syllable"), axis.title = c("Vowel peripherity", "% stressed"),
-           title = "Spanish production - Vowel",
+spa_vowel_syllable = plot_model(spa_model_plot, type = "pred", terms = c("f0", "syllable"), axis.title = c("Low F0", "% stressed"),
+           title = "Spanish production - Low F0",
            #legend.title = "Steps",
            pred.type = "re") +
   #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
@@ -168,19 +161,21 @@ spa_pc1_vowel = plot_model(spa_model_plot, type = "pred", terms = c("pc1 [all]",
 spa_pc1_vowel
 ```
 
+## English production - trilinguals only
+
 ```{r}
 eng = data %>%
   filter(Language == "eng" & lang_profile!= "mono")
-eng_model_plot= glm(stress ~ dur_period*pc1*syllable + dur_period*pc2*syllable + f0_spectilt*pc1*syllable + f0_spectilt*pc2*syllable +
-                      vowel_periph*pc1*syllable + vowel_periph*pc2*syllable,
+eng_model_plot= glmer(stress ~ dur_period*pc1*syllable + dur_period*pc2*syllable + f0*pc1*syllable + f0*pc2*syllable +
+                      vowel_periph*pc1*syllable + vowel_periph*pc2*syllable+ (dur_period * syllable + f0 * syllable + vowel_periph * syllable|partID),
                     data = eng, family = "binomial")
 summary(eng_model_plot)
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 set_theme(base = theme_bw())
-eng_f0_syl = plot_model(eng_model_plot, type = "pred", terms = c("f0_spectilt", "syllable"), axis.title = c("F0", "% stressed"),
-           title = "English production - F0",
+eng_f0_syl = plot_model(eng_model_plot, type = "pred", terms = c("f0", "syllable"), axis.title = c("Low F0", "% stressed"),
+           title = "English production - Low F0",
            #legend.title = "Steps",
            pred.type = "re") +
   #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +
@@ -225,11 +220,13 @@ eng_pc2_vowel= plot_model(eng_model_plot, type = "pred", terms = c("pc2 [all]", 
 eng_pc2_vowel
 ```
 
+## English production - by language profile
+
 ```{r}
 eng_lang = data %>%
   filter(Language == "eng")
-eng_lang_model_plot= glm(stress ~ dur_period*lang_profile*syllable + f0_spectilt*lang_profile*syllable +
-                      vowel_periph*lang_profile*syllable,
+eng_lang_model_plot= glmer(stress ~ dur_period*lang_profile*syllable + f0*lang_profile*syllable +
+                      vowel_periph*lang_profile*syllable + (dur_period * syllable + f0 * syllable + vowel_periph * syllable|partID),
                     data = eng_lang, family = "binomial")
 summary(eng_lang_model_plot)
 ```
@@ -260,8 +257,8 @@ eng_lang_vowel
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 set_theme(base = theme_bw())
-eng_lang_dur= plot_model(eng_lang_model_plot, type = "pred", terms = c("dur_period", "lang_profile"), axis.title = c("Duration", "% stressed"),
-           title = "English production - Duration",
+eng_lang_dur= plot_model(eng_lang_model_plot, type = "pred", terms = c("f0", "syllable"), axis.title = c("Low F0", "% stressed"),
+           title = "English production - Low F0",
            #legend.title = "Steps",
            pred.type = "re") +
   #scale_color_discrete(labels=c('1', '2', '3', '4', '5')) +

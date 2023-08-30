@@ -1,0 +1,206 @@
+---
+title: "Logit models of production data with Bayesian predictive modelling - Spanish"
+author: "Annie Helms (annie_helms@berkeley.edu)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, dev = "cairo_pdf", out.height = 600)
+options(scipen = 999) # avoid scientific notation
+```
+
+Library packages
+
+```{r message = FALSE, warning = FALSE}
+library(lmerTest) #mixed effects linear regression
+library(dplyr)
+library(ggplot2)
+library(Cairo)
+library(effects)
+library(ragg)
+library(gridExtra)
+library(ggside)
+library(sjPlot)
+library(emmeans)
+library(ggstatsplot)
+library(pscl)
+library(bayesplot)
+library(brms)
+library(ggtext)
+library(kableExtra) # formats dataframes in html output
+```
+
+Set working directory.
+
+```{r message = FALSE, echo = FALSE}
+setwd("C:/Users/atarv/Documents/github/diss/production/")
+```
+
+
+```{r}
+options(width = 10000)
+data = read.csv("data/big_PCA_forR.csv", 
+                  stringsAsFactors = TRUE)
+head(data)
+```
+
+## Spanish production
+
+```{r}
+spa = data %>%
+  filter(Language=="spa")
+head(spa)
+
+```
+
+```{r}
+spa_formula = "stress ~ dur_period*pc1*syllable + dur_period*pc2*syllable + f0*pc1*syllable + f0*pc2*syllable + vowel_periph*pc1*syllable + vowel_periph*pc2*syllable + (dur_period * syllable + f0 * syllable + vowel_periph * syllable|partID)"
+
+spa_priors <- get_prior(spa_formula,spa,family=bernoulli())
+
+spa_model <- brm(formula=bf(spa_formula,autocor = ~ 0),data=spa, family=bernoulli(), 
+            prior=spa_priors, cores = 8, save_pars = save_pars(all = TRUE), iter=4000)
+```
+
+Examine results
+
+```{r}
+summary(spa_model)
+bayes_R2(spa_model)
+```
+
+Visualize results
+
+```{r}
+spa_posterior <- as.array(spa_model)  # prepare to plot the brm result
+dim(spa_posterior)
+dimnames(spa_posterior)$variable[1:30]
+```
+
+```{r}
+spa_coeff_plot = mcmc_areas(spa_posterior, pars = c("b_dur_period", "b_pc1", "b_syllableult", "b_pc2", "b_f0",  "b_vowel_periph", "b_dur_period:pc1",  "b_dur_period:syllableult", "b_pc1:syllableult", "b_dur_period:pc2", "b_syllableult:pc2", "b_pc1:f0", "b_syllableult:f0", "b_pc2:f0", "b_pc1:vowel_periph", "b_syllableult:vowel_periph", "b_pc2:vowel_periph", "b_dur_period:pc1:syllableult", "b_dur_period:syllableult:pc2", "b_pc1:syllableult:f0", "b_syllableult:pc2:f0", "b_pc1:syllableult:vowel_periph", "b_syllableult:pc2:vowel_periph"), 
+          prob = 0.8, # 80% intervals
+          prob_outer = 0.95, # 95%
+          point_est = "median") +
+  scale_y_discrete(labels=c("Ultimate syllable:PC2:Vowel peripherality", "PC1:Ultimate syllable: Vowel peripherality", "Ultimate syllable:PC2:F0", "PC1:Ultimate syllable:F0", "Duration (periodic):Ultimate syllable:PC2", "Duration (periodic):PC1:Ultimate syllable", "PC2:Vowel peripherality", "Ultimate syllable:Vowel peripherality", "PC1:Vowel peripherality", "PC2:F0", "Ultimate syllable:F0", "PC1:F0", "Ultimate syllable:PC2", "Duration (periodic):PC2", "PC1:Ultimate syllable","Duration (periodic):Ultimate syllable", "Duration (periodic):PC1", "Vowel peripherality", "F0","PC2","Ultimate syllable", "PC1", "Duration (periodic)"), limits = rev) +
+  labs(title = "Coefficients of Spanish production", x ="Coefficient, sd(Stress)") +theme(plot.title=element_text(hjust = 0.5))
+spa_coeff_plot
+```
+
+```{r}
+cairo_pdf("figures/spa_coeff.pdf", family = "serif", width = 8, height = 6)
+spa_coeff_plot
+dev.off()
+```
+
+```{r}
+spa_syllable_f0 = conditional_effects(spa_model, effects = "f0:syllable", int_conditions = "syllable")
+```
+
+```{r}
+spa_syllable_f0_plot = plot(spa_syllable_f0, plot = FALSE)[[1]] + labs(title = "Spanish production", x = "F0", y = "Proportion stressed") + guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+spa_syllable_f0_plot
+```
+
+```{r}
+cairo_pdf("figures/spa_syllable_f0_production.pdf", family = "serif", width = 8, height = 6)
+spa_syllable_f0_plot
+dev.off()
+```
+
+
+```{r}
+emt <- emtrends(spa_model, "syllable", var = "f0")
+emt
+pairs(emt)
+```
+
+```{r}
+emt <- emtrends(spa_model, "syllable", var = "pc1")
+emt
+pairs(emt)
+```
+
+```{r}
+check = spa %>%
+  mutate(pc1_binary = case_when(
+    pc1 < 0   ~ "low" ,
+    pc1 >0 ~ "high"))
+
+check %>%
+  group_by(pc1_binary, syllable, stress) %>% 
+  count()
+```
+
+
+```{r}
+emt <- emtrends(cat_model, "syllable", var = "vowel_periph")
+emt
+pairs(emt)
+```
+
+
+```{r}
+spa_dur_pc1 = conditional_effects(spa_model, effects = "pc1:dur_period", int_conditions = "pc1")
+```
+
+```{r}
+spa_dur_pc1_plot = plot(spa_dur_pc1, plot = FALSE)[[1]] + labs(title = "Spanish production", x = "PC1", y = "Proportion stressed") + guides(color=guide_legend(title="Duration (periodic)"), fill = 'none') +
+  scale_color_discrete(breaks = c(-2.61, 0, 2.61), labels=c('-1 SD', 'mean', '+1 SD')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+spa_dur_pc1_plot
+```
+
+```{r}
+cairo_pdf("figures/spa_dur_pc1_production.pdf", family = "serif", width = 8, height = 6)
+spa_dur_pc1_plot
+dev.off()
+```
+```{r}
+spa %>%
+  select(pc1)%>%
+  summarize(mean = mean(pc1),
+            low_sd = mean(pc1)-sd(pc1),
+            high_sd = mean(pc1)+sd(pc1))
+  
+```
+
+
+```{r}
+conditions = data.frame(pc1 = c(-5.51169, -0.6124431, 4.286804))
+spa_dur_pc1_syllable = conditional_effects(spa_model, effects = "dur_period:syllable", conditions = conditions)
+```
+
+```{r}
+spa_dur_pc1_syllable_plot = plot(spa_dur_pc1_syllable, plot = FALSE)[[1]] + labs(title = "Spanish production", x = "Duration (periodic)", y = "Proportion stressed") +
+  guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+spa_dur_pc1_syllable_plot$data$cond__ <- ifelse(spa_dur_pc1_syllable_plot$data$cond__ == "1", "PC1 (-1 SD)",
+ifelse(spa_dur_pc1_syllable_plot$data$cond__ == "2", "PC1 (mean)",
+ifelse(spa_dur_pc1_syllable_plot$data$cond__ == "3", "PC1 (+1 SD)", 99)))
+
+spa_dur_pc1_syllable_plot$data$cond__ <- factor(spa_dur_pc1_syllable_plot$data$cond__, levels = c("PC1 (-1 SD)", "PC1 (mean)", "PC1 (+1 SD)"))
+
+spa_dur_pc1_syllable_plot
+```
+
+```{r}
+cairo_pdf("figures/spa_dur_pc1_syllable_production.pdf", family = "serif", width = 8, height = 6)
+spa_dur_pc1_syllable_plot
+dev.off()
+```
+
+
+
+
+

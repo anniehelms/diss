@@ -1,0 +1,294 @@
+---
+title: "Logit models of production data with Bayesian predictive modelling"
+author: "Annie Helms (annie_helms@berkeley.edu)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, dev = "cairo_pdf", out.height = 600)
+options(scipen = 999) # avoid scientific notation
+```
+
+Library packages
+
+```{r message = FALSE, warning = FALSE}
+library(lmerTest) #mixed effects linear regression
+library(dplyr)
+library(ggplot2)
+library(Cairo)
+library(effects)
+library(ragg)
+library(gridExtra)
+library(ggside)
+library(sjPlot)
+library(emmeans)
+library(ggstatsplot)
+library(pscl)
+library(bayesplot)
+library(brms)
+library(ggtext)
+library(kableExtra) # formats dataframes in html output
+```
+
+Set working directory.
+
+```{r message = FALSE, echo = FALSE}
+setwd("C:/Users/atarv/Documents/github/diss/production/")
+```
+
+
+```{r}
+options(width = 10000)
+data = read.csv("data/big_PCA_forR_f1f2.csv", 
+                  stringsAsFactors = TRUE)
+head(data)
+```
+
+## English production with language profile
+
+```{r}
+eng = data %>%
+  filter(Language=="eng")
+head(eng)
+
+```
+
+```{r}
+eng_formula = "stress ~ v_dur_period*lang_profile*syllable + f0*lang_profile*syllable + syl_dur*lang_profile*syllable +  sF1_norm_center*lang_profile*syllable + sF2_norm_center*lang_profile*syllable + (v_dur_period * syllable + f0 * syllable + syl_dur * syllable + sF1_norm_center*syllable + sF2_norm_center*syllable|partID)"
+
+eng_priors <- get_prior(eng_formula,eng,family=bernoulli())
+
+eng_model <- brm(formula=bf(eng_formula,autocor = ~ 0),data=eng, family=bernoulli(), 
+            prior=eng_priors, cores = 8, save_pars = save_pars(all = TRUE), iter=4000)
+```
+
+Examine results
+
+```{r}
+summary(eng_model)
+bayes_R2(eng_model)
+```
+
+Visualize results
+
+```{r}
+eng_posterior <- as.array(eng_model)  # prepare to plot the brm result
+dim(eng_posterior)
+dimnames(eng_posterior)$variable[1:50]
+```
+
+```{r}
+eng_lang_coeff_plot = mcmc_areas(eng_posterior, pars = c("b_v_dur_period", "b_lang_profilel3_eng", "b_lang_profilemono", "b_syllableult", "b_f0", "b_syl_dur", "b_sF1_norm_center", "b_sF2_norm_center", "b_v_dur_period:lang_profilel3_eng", "b_v_dur_period:lang_profilemono", "b_v_dur_period:syllableult", "b_lang_profilel3_eng:syllableult", "b_lang_profilemono:syllableult", "b_lang_profilel3_eng:f0", "b_lang_profilemono:f0", "b_syllableult:f0", "b_lang_profilel3_eng:syl_dur", "b_lang_profilemono:syl_dur", "b_syllableult:syl_dur", "b_lang_profilel3_eng:sF1_norm_center", "b_lang_profilemono:sF1_norm_center", "b_syllableult:sF1_norm_center", "b_lang_profilel3_eng:sF2_norm_center", "b_lang_profilemono:sF2_norm_center", "b_syllableult:sF2_norm_center", "b_v_dur_period:lang_profilel3_eng:syllableult", "b_v_dur_period:lang_profilemono:syllableult", "b_lang_profilel3_eng:syllableult:f0", "b_lang_profilemono:syllableult:f0", "b_lang_profilel3_eng:syllableult:syl_dur", "b_lang_profilemono:syllableult:syl_dur", "b_lang_profilel3_eng:syllableult:sF1_norm_center", "b_lang_profilemono:syllableult:sF1_norm_center",  "b_lang_profilel3_eng:syllableult:sF2_norm_center","b_lang_profilemono:syllableult:sF2_norm_center"), 
+          prob = 0.8, # 80% intervals
+          prob_outer = 0.95, # 95%
+          point_est = "median") +
+scale_y_discrete(labels=c("Monolingual:Ultimate syllable:F2",  "L3 English:Ultimate syllable:F2", "Monolingual:Ultimate syllable:F1", "L3 English:Ultimate syllable:F1", "Monolingual:Ultimate syllable:Syllable duration", "L3 English:Ultimate syllable:Syllable duration", "Monolingual:Ultimate syllable:F0", "L3 English:Ultimate syllable:F0", "Vowel duration (periodic):Monolingual:Ultimate syllable", "Vowel duration (periodic):L3 English:Ultimate syllable", "Ultimate syllable:F2", "Monolingual:F2", "L3 English:F2", "Ultimate syllable:F1", "Monolingual:F1", "L3 English:F1", "Ultimate syllable:Syllable duration", "Monolingual:Syllable duration", "L3 English:Syllable duration", "Ultimate syllable:F0", "Monolingual:F0", "L3 English:F0", "Monolingual:Ultimate syllable", "L3 English:Ultimate syllable", "Vowel duration (periodic):Ultimate syllable", "Vowel duration (periodic):Monolingual", "Vowel duration (periodic):L3 English", "F2", "F1", "Syllable duration", "F0", "Ultimate syllable", "Monolingual", "L3 English", "Vowel duration (periodic)"), limits=rev) +
+  labs(title = "Coefficients of English production", x ="Coefficient, sd(Stress)") +theme(plot.title=element_text(hjust = 0.5))
+eng_lang_coeff_plot
+```
+```{r}
+cairo_pdf("figures/eng_lang_coeff.pdf", family = "serif", width = 8, height = 6)
+eng_lang_coeff_plot
+dev.off()
+```
+
+```{r}
+eng_syllable_f0 = conditional_effects(eng_model, effects = "f0:syllable", int_conditions = "syllable")
+```
+
+```{r}
+eng_lang_syllable_f0_plot = plot(eng_syllable_f0, plot = FALSE)[[1]] + labs(title = "English production", x = "F0", y = "Proportion stressed") + guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_lang_syllable_f0_plot
+```
+
+
+```{r}
+cairo_pdf("figures/eng_lang_syllable_f0_production.pdf", family = "serif", width = 8, height = 6)
+eng_lang_syllable_f0_plot
+dev.off()
+```
+
+
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "f0")
+emt
+pairs(emt)
+```
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "sF1_norm_center")
+emt
+pairs(emt)
+```
+
+```{r}
+eng_syllable_f1 = conditional_effects(eng_model, effects = "sF1_norm_center:syllable", int_conditions = "syllable")
+```
+
+```{r}
+eng_lang_syllable_f1_plot = plot(eng_syllable_f1, plot = FALSE)[[1]] + labs(title = "English production", x = "Normalized F1", y = "Proportion stressed") + guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_lang_syllable_f1_plot
+```
+```{r}
+cairo_pdf("figures/eng_lang_syllable_f1_production.pdf", family = "serif", width = 8, height = 6)
+eng_lang_syllable_f1_plot
+dev.off()
+```
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "sF2_norm_center")
+emt
+pairs(emt)
+```
+
+
+```{r}
+eng_syllable_f2 = conditional_effects(eng_model, effects = "sF2_norm_center:syllable", int_conditions = "syllable")
+```
+
+```{r}
+eng_lang_syllable_f2_plot = plot(eng_syllable_f2, plot = FALSE)[[1]] + labs(title = "English production", x = "Normalized F2", y = "Proportion stressed") + guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+eng_lang_syllable_f2_plot
+```
+```{r}
+cairo_pdf("figures/eng_lang_syllable_f2_production.pdf", family = "serif", width = 8, height = 6)
+eng_lang_syllable_f2_plot
+dev.off()
+```
+
+```{r}
+conditions_lang = data.frame(lang_profile = c("mono", "l1_eng", "l3_eng"))
+eng_f2_lang_syllable = conditional_effects(eng_model, effects = "sF2_norm_center:syllable", conditions = conditions_lang)
+```
+
+```{r}
+eng_f2_lang_syllable_plot = plot(eng_f2_lang_syllable, plot = FALSE)[[1]] + labs(title = "English production", x = "Normalized F2", y = "Proportion stressed") + 
+guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_f2_lang_syllable_plot$data$cond__ <- ifelse(eng_f2_lang_syllable_plot$data$cond__ == "1", "Monolingual",
+ifelse(eng_f2_lang_syllable_plot$data$cond__ == "2", "L1 English",
+ifelse(eng_f2_lang_syllable_plot$data$cond__ == "3", "L3 English", 99)))
+
+
+eng_f2_lang_syllable_plot$data$cond__ <- factor(eng_f2_lang_syllable_plot$data$cond__, levels = c("Monolingual", "L1 English", "L3 English"))
+
+eng_f2_lang_syllable_plot
+```
+
+```{r}
+cairo_pdf("figures/eng_f2_lang_syllable.pdf", family = "serif", width = 8, height = 6)
+eng_f2_lang_syllable_plot
+dev.off()
+```
+
+```{r}
+eng_vdur_lang_syllable = conditional_effects(eng_model, effects = "v_dur_period:syllable", conditions = conditions_lang)
+```
+
+```{r}
+eng_vdur_lang_syllable_plot = plot(eng_vdur_lang_syllable, plot = FALSE)[[1]] + labs(title = "English production", x = "Vowel duration (periodic)", y = "Proportion stressed") + 
+guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_vdur_lang_syllable_plot$data$cond__ <- ifelse(eng_vdur_lang_syllable_plot$data$cond__ == "1", "Monolingual",
+ifelse(eng_vdur_lang_syllable_plot$data$cond__ == "2", "L1 English",
+ifelse(eng_vdur_lang_syllable_plot$data$cond__ == "3", "L3 English", 99)))
+
+
+eng_vdur_lang_syllable_plot$data$cond__ <- factor(eng_vdur_lang_syllable_plot$data$cond__, levels = c("Monolingual", "L1 English", "L3 English"))
+
+eng_vdur_lang_syllable_plot
+```
+
+```{r}
+cairo_pdf("figures/eng_vdur_lang_production.pdf", family = "serif", width = 8, height = 6)
+eng_vdur_lang_syllable_plot
+dev.off()
+```
+
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "v_dur_period")
+emt
+pairs(emt)
+```
+```{r}
+emt <- emtrends(eng_model, "lang_profile", var = "v_dur_period")
+emt
+pairs(emt)
+```
+
+
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "syl_dur")
+emt
+pairs(emt)
+```
+```{r}
+emt <- emtrends(eng_model, "lang_profile", var = "syl_dur")
+emt
+pairs(emt)
+```
+
+```{r}
+eng_sdur_lang_syllable = conditional_effects(eng_model, effects = "syl_dur:syllable", conditions = conditions_lang)
+```
+
+```{r}
+eng_sdur_lang_syllable_plot = plot(eng_sdur_lang_syllable, plot = FALSE)[[1]] + labs(title = "English production", x = "Syllable duration", y = "Proportion stressed") + 
+guides(color=guide_legend(title="Syllable"), fill = 'none') +
+  scale_color_discrete(labels=c('Penultimate', 'Ultimate')) +
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+eng_sdur_lang_syllable_plot$data$cond__ <- ifelse(eng_sdur_lang_syllable_plot$data$cond__ == "1", "Monolingual",
+ifelse(eng_sdur_lang_syllable_plot$data$cond__ == "2", "L1 English",
+ifelse(eng_sdur_lang_syllable_plot$data$cond__ == "3", "L3 English", 99)))
+
+
+eng_sdur_lang_syllable_plot$data$cond__ <- factor(eng_sdur_lang_syllable_plot$data$cond__, levels = c("Monolingual", "L1 English", "L3 English"))
+
+eng_sdur_lang_syllable_plot
+```
+
+```{r}
+cairo_pdf("figures/eng_syldur_lang_production.pdf", family = "serif", width = 8, height = 6)
+eng_sdur_lang_syllable_plot
+dev.off()
+```
+
+
+
+
+
+```{r}
+emt <- emtrends(eng_model, "syllable", var = "lang_profile")
+emt
+pairs(emt)
+```
+
+
+```{r}
+check = eng %>%
+  mutate(pc1_binary = case_when(
+    pc1 < 0   ~ "low" ,
+    pc1 >0 ~ "high"))
+
+check %>%
+  group_by(pc1_binary, syllable, stress) %>% 
+  count()
+```
+
+
+
