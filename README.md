@@ -26,7 +26,7 @@ crosslinguistic influence. Principal component analysis (performed in [`blp`](ht
 
 **Perception**: Bayesian multilevel modeling of trilingual perceptual data obtained with word identification task.
 - Raw perception data (`data/english.csv`, `data/catalan.csv`, and `data/spanish.csv`) are cleaned and prepared for Bayesian analysis in `1_ready_for_R.ipynb`, cleaned data are saved as `data/eng_r.csv`, `data/cat_r.csv`, and `data/spa_r.csv`
-- `5_cat_bayes.Rmd', `6_spa_bayes.Rmd', `7_eng_tri_bayes.Rmd', and `9_eng_all_bayes.Rmd' submit data (isolated across language) to Bayesian multilevel models and generate visualizations of significant interactions
+- `5_cat_bayes.Rmd`, `6_spa_bayes.Rmd`, `7_eng_tri_bayes.Rmd`, and `9_eng_all_bayes.Rmd` submit data (isolated across language) to Bayesian multilevel models and generate visualizations of significant interactions
 - Heatmaps of perceptual across cues that were manipulated simultaneously are produced in `4_heatmap.ipynb`
 
 
