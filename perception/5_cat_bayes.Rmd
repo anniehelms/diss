@@ -1,0 +1,262 @@
+---
+title: "Logit models of perception data with Bayesian predictive modelling"
+author: "Annie Helms (annie_helms@berkeley.edu)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, dev = "cairo_pdf", out.height = 600)
+options(scipen = 999) # avoid scientific notation
+```
+
+Library packages
+
+```{r message = FALSE, warning = FALSE}
+library(lmerTest) #mixed effects linear regression
+library(dplyr)
+library(ggplot2)
+library(Cairo)
+library(effects)
+library(ragg)
+library(gridExtra)
+library(grid)
+library(ggside)
+library(sjPlot)
+library(emmeans)
+library(ggstatsplot)
+library(pscl)
+library(bayesplot)
+library(brms)
+library(ggtext)
+library(kableExtra) # formats dataframes in html output
+```
+
+Set working directory.
+
+```{r message = FALSE, echo = FALSE}
+setwd("C:/Users/atarv/Documents/github/diss/perception/")
+```
+
+
+```{r}
+options(width = 10000)
+df = read.csv("data/cat_r.csv", 
+                  stringsAsFactors = TRUE)
+head(df)
+```
+
+## Catalan production
+
+```{r}
+# label binarizer
+data = df %>%
+  mutate(response_onehot = case_when(response_binary=="pen"~0,
+                                    response_binary=="ult"~1),
+         formant_jit = jitter(formant_center, amount=.001),
+         spectilt_jit = jitter(spectilt_center, amount=.001),
+         duration_jit = jitter(duration_center, amount=.001))
+head(data)
+```
+
+
+```{r}
+formula = "response_onehot ~ formant_jit*spectilt_jit*duration_jit*pc1 + formant_jit*spectilt_jit*duration_jit*pc2 + (formant_jit*spectilt_jit*duration_jit|partID)"
+
+priors <- get_prior(formula,data,family=bernoulli())
+
+model <- brm(formula=bf(formula,autocor = ~ 0),data=data, family=bernoulli(), 
+            prior=priors, cores = 8, save_pars = save_pars(all = TRUE), iter=4000)
+```
+Save or load model
+
+```{r}
+save(model, file="data/cat_model.Rdata")
+#load("data/cat_model.Rdata")
+```
+
+Examine results
+
+```{r}
+summary(model)
+bayes_R2(model)
+```
+
+Visualize results
+
+```{r}
+posterior <- as.array(model)  # prepare to plot the brm result
+dim(posterior)
+dimnames(posterior)$variable[1:50]
+```
+
+```{r}
+coeff_plot = mcmc_areas(posterior, pars = c("b_formant_jit", "b_spectilt_jit", "b_duration_jit", "b_pc1", "b_pc2", "b_formant_jit:spectilt_jit", "b_formant_jit:duration_jit", "b_spectilt_jit:duration_jit", "b_formant_jit:pc1", "b_spectilt_jit:pc1", "b_duration_jit:pc1", "b_formant_jit:pc2", "b_spectilt_jit:pc2", "b_duration_jit:pc2", "b_formant_jit:spectilt_jit:duration_jit", "b_formant_jit:spectilt_jit:pc1", "b_formant_jit:duration_jit:pc1", "b_spectilt_jit:duration_jit:pc1", "b_formant_jit:spectilt_jit:pc2", "b_formant_jit:duration_jit:pc2", "b_spectilt_jit:duration_jit:pc2", "b_formant_jit:spectilt_jit:duration_jit:pc1", "b_formant_jit:spectilt_jit:duration_jit:pc2"), 
+          prob = 0.8, # 80% intervals
+          prob_outer = 0.95, # 95%
+          point_est = "median") +
+  xlim(-2,2)+
+scale_y_discrete(labels=c("Vowel quality:Spectral tilt:Duration:PC2", "Vowel quality:Spectral tilt:Duration:PC1", "Spectral tilt:Duration:PC2", "Vowel quality:Duration:PC2", "Vowel quality:Spectral tilt:PC2", "Spectral tilt:Duration:PC1","Vowel quality:Duration:PC1", "Vowel quality:Spectral tilt:PC1", "Vowel quality:Spectral tilt:Duration", "Duration:PC2", "Spectral tilt:PC2", "Vowel quality:PC2", "Duration:PC1", "Spectral tilt:PC1", "Vowel quality:PC1", "Spectral tilt:Duration", "Vowel quality:Duration", "Vowel quality:Spectral tilt", "PC2", "PC1", "Duration", "Spectral tilt", "Vowel quality"), limits=rev) +
+  labs(title = "Coefficients of Catalan perception", x ="Coefficient, sd(Oxtyone Stress)") +theme(plot.title=element_text(hjust = 0.5))
+coeff_plot
+```
+
+
+```{r}
+cairo_pdf("figures/bayes/cat_perc_coeff.pdf", family = "serif", width = 8, height = 6)
+coeff_plot
+dev.off()
+```
+
+
+```{r}
+cat_vowel_pc1 = conditional_effects(model, effects = "formant_jit:pc1", int_conditions = "formant_jit")
+cat_dur_pc1 = conditional_effects(model, effects = "duration_jit:pc1", int_conditions = "duration_jit")
+cat_spectilt_pc1 = conditional_effects(model, effects = "spectilt_jit:pc1", int_conditions = "spectilt_jit")
+```
+
+```{r}
+cat_vowel_pc1_plot = plot(cat_vowel_pc1, plot = FALSE)[[1]] + labs(title = "", x = "Vowel quality steps", y = "Proportion ponDIS") +
+  guides(color=guide_legend(title="PC1"), fill = 'none') +
+  scale_color_discrete(breaks = c(-5.06, -0.07, 4.92),
+    labels=c('-1 SD', 'mean', '+1 SD')
+    )+
+  ylim(0,1)+
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_vowel_pc1_plot
+
+cat_dur_pc1_plot = plot(cat_dur_pc1, plot = FALSE)[[1]] + labs(title = "", x = "Duration steps", y = "") + guides(color=guide_legend(title="PC1"), fill = 'none') +
+  scale_color_discrete(breaks = c(-5.06, -0.07, 4.92),
+    labels=c('-1 SD', 'mean', '+1 SD')
+    )+
+  ylim(0,1)+
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "none")
+
+cat_spectilt_pc1_plot = plot(cat_spectilt_pc1, plot = FALSE)[[1]] + labs(title = "Catalan perception", x = "Spectral tilt steps", y = "") + guides(color=guide_legend(title="PC1"), fill = 'none') +
+  scale_color_discrete(breaks = c(-5.06, -0.07, 4.92),
+    labels=c('-1 SD', 'mean', '+1 SD')
+    )+
+  ylim(0,1)+
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "none")
+```
+
+```{r}
+get_legend<-function(myggplot){
+  tmp <- ggplot_gtable(ggplot_build(myggplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)
+}
+```
+
+
+```{r}
+legend <- get_legend(cat_vowel_pc1_plot)
+
+cat_vowel_pc1_plot = cat_vowel_pc1_plot + theme(legend.position="none")
+```
+
+```{r}
+grid.arrange(cat_vowel_pc1_plot, cat_spectilt_pc1_plot, cat_dur_pc1_plot, legend, ncol=3, nrow = 2,
+                           layout_matrix = rbind(c(1,2,3), c(4,4,4)),
+                           widths = c(4, 4, 4), heights = c(2.5, 0.2))
+```
+
+
+```{r}
+cairo_pdf("figures/bayes/cat_acoustic_pc1_perception.pdf", family = "serif", width = 12, height = 4)
+grid.arrange(cat_vowel_pc1_plot, cat_spectilt_pc1_plot, cat_dur_pc1_plot, legend, ncol=3, nrow = 2,
+                           layout_matrix = rbind(c(1,2,3), c(4,4,4)),
+                           widths = c(4, 4, 4), heights = c(2.5, 0.2))
+dev.off()
+```
+
+```{r}
+cat_vowel_pc2 = conditional_effects(model, effects = "formant_jit:pc2", int_conditions = "formant_jit")
+cat_spectilt_pc2 = conditional_effects(model, effects = "spectilt_jit:pc2", int_conditions = "spectilt_jit")
+```
+
+```{r}
+cat_vowel_pc2_plot = plot(cat_vowel_pc2, plot = FALSE)[[1]] + labs(title = "", x = "Vowel quality steps", y = "Proportion ponDIS") + guides(color=guide_legend(title="PC2"), fill = 'none') +
+  scale_color_discrete(breaks = c(-2.53, 0, 2.54),
+    labels=c('-1 SD', 'mean', '+1 SD')
+    )+
+  ylim(0,1)+
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+cat_vowel_pc2_plot
+
+cat_spectilt_pc2_plot = plot(cat_spectilt_pc2, plot = FALSE)[[1]] + labs(title = "", x = "Spectral tilt steps", y = "") + guides(color=guide_legend(title="PC2"), fill = 'none') +
+  scale_color_discrete(breaks = c(-2.53, 0, 2.54),
+    labels=c('-1 SD', 'mean', '+1 SD')
+    )+
+  ylim(0,1)+
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "none")
+```
+
+```{r}
+legend_pc2 <- get_legend(cat_vowel_pc2_plot)
+
+cat_vowel_pc2_plot = cat_vowel_pc2_plot + theme(legend.position="none")
+```
+
+```{r}
+grid.arrange(cat_vowel_pc2_plot, cat_spectilt_pc2_plot, legend_pc2, ncol=2, nrow = 2, top=textGrob("Catalan perception"),
+                           layout_matrix = rbind(c(1,2), c(3,3)),
+                           widths = c(4, 4), heights = c(2.5, 0.2))
+```
+
+
+```{r}
+cairo_pdf("figures/bayes/cat_acoustic_pc2_perception.pdf", family = "serif", width = 8, height = 4)
+grid.arrange(cat_vowel_pc2_plot, cat_spectilt_pc2_plot, legend_pc2, ncol=2, nrow = 2, top=textGrob("Catalan perception"),
+                           layout_matrix = rbind(c(1,2), c(3,3)),
+                           widths = c(4, 4), heights = c(2.5, 0.2))
+dev.off()
+```
+
+
+```{r}
+data %>%
+  select(pc2)%>%
+  summarize(mean = mean(pc2),
+            low_sd = mean(pc2)-sd(pc2),
+            high_sd = mean(pc2)+sd(pc2))
+  
+```
+
+```{r}
+conditions = data.frame(spectilt_jit= c(-2, -1, 0, 1, 2))
+cat_vowel_spec_pc2 = conditional_effects(model, effects = "formant_jit:pc2", conditions = conditions)
+```
+
+```{r}
+cat_vowel_spec_pc2_plot = plot(cat_vowel_spec_pc2, plot = FALSE)[[1]] + labs(title = "Catalan perception", x = "Vowel quality steps", y = "Proportion ponDIS") +
+  guides(color=guide_legend(title="PC2"), fill = 'none') +
+  scale_color_discrete(breaks = c(-2.53, 0, 2.54),
+    labels=c('-1 SD', 'mean', '+1 SD'))+
+  theme(plot.title=element_text(hjust = 0.5), legend.position = "bottom")
+
+cat_vowel_spec_pc2_plot$data$cond__ <- ifelse(cat_vowel_spec_pc2_plot$data$cond__ == "1", "Spectral tilt step -2",
+  ifelse(cat_vowel_spec_pc2_plot$data$cond__ == "2", "Spectral tilt step -1",
+  ifelse(cat_vowel_spec_pc2_plot$data$cond__ == "3", "Spectral tilt step 0",
+  ifelse(cat_vowel_spec_pc2_plot$data$cond__ == "4", "Spectral tilt step 1",
+  ifelse(cat_vowel_spec_pc2_plot$data$cond__ == "5", "Spectral tilt step 2", 99)))))
+cat_vowel_spec_pc2_plot$facet$params$ncol=5
+
+cat_vowel_spec_pc2_plot$data$cond__ <- factor(cat_vowel_spec_pc2_plot$data$cond__, levels = c("Spectral tilt step -2", "Spectral tilt step -1",
+                                                                                          "Spectral tilt step 0", "Spectral tilt step 1",
+                                                                                          "Spectral tilt step 2"))
+
+cat_vowel_spec_pc2_plot
+```
+
+```{r}
+cairo_pdf("figures/bayes/cat_vowel_spec_pc2_perception.pdf", family = "serif", width = 8, height = 4)
+cat_vowel_spec_pc2_plot
+dev.off()
+```

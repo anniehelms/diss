@@ -1,0 +1,181 @@
+---
+title: "Boxplots and descriptive statistics"
+author: "Annie Helms (annie_helms@berkeley.edu)"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, dev = "cairo_pdf", out.height = 600)
+options(scipen = 999) # avoid scientific notation
+```
+
+Library packages
+
+```{r message = FALSE, warning = FALSE}
+library(lmerTest) #mixed effects linear regression
+library(dplyr)
+library(ggplot2)
+library(Cairo)
+library(effects)
+library(ragg)
+library(gridExtra)
+library(ggside)
+library(sjPlot)
+library(emmeans)
+library(ggstatsplot)
+library(pscl)
+library(bayesplot)
+library(brms)
+library(ggtext)
+library(kableExtra) # formats dataframes in html output
+```
+
+Set working directory.
+
+```{r message = FALSE, echo = FALSE}
+setwd("C:/Users/atarv/Documents/github/diss/production/")
+```
+
+
+```{r}
+options(width = 10000)
+data = read.csv("data/master_df.csv", 
+                  stringsAsFactors = TRUE)
+head(data)
+```
+
+## Descriptive statistics
+
+```{r}
+descript_stats = data %>%
+  group_by(Language, lang_profile, syllable, stress)%>%
+  summarize(mean_vdur = mean(v_dur_period),
+            sd_vdur = sd(v_dur_period),
+            mean_syldur = mean(syl_dur),
+            sd_syldur = sd(syl_dur),
+            mean_f1 = mean(sF1_norm_center),
+            sd_f1 = sd(sF1_norm_center),
+            mean_f2 = mean(sF2_norm_center),
+            sd_f2 = sd(sF2_norm_center),
+            mean_f0 = mean(f0),
+            sd_f0 = sd(f0))
+descript_stats
+```
+
+```{r}
+write.csv(descript_stats, "data/descriptive_stats.csv", row.names = FALSE)
+```
+
+```{r}
+# New facet label names for language variable
+lang.labs <- c("Catalan", "English", "Spanish")
+names(lang.labs) <- c("cat", "eng", "spa")
+
+# New facet label names for supp variable
+prof.labs <- c("L1 English", "L3 English", "Monolingual")
+names(prof.labs) <- c("l1_eng", "l3_eng", 'mono')
+
+boxplot_vdur = ggplot(data, aes(x = as.factor(stress), y = v_dur_period, fill = syllable))+
+  xlab("Stress")+ ylab("Vowel duration (periodic)")+
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  facet_grid(Language ~ lang_profile,
+             labeller = labeller(Language = lang.labs, lang_profile = prof.labs))+
+  scale_fill_discrete(labels = c("Penultimate", "Ultimate"))+
+  theme(legend.position = "bottom")+
+  guides(fill=guide_legend(title="Syllable"))
+
+
+boxplot_vdur
+```
+
+```{r}
+cairo_pdf("figures/stats/vdur.pdf", family = "serif", width = 8, height = 6)
+boxplot_vdur
+dev.off()
+```
+
+```{r}
+boxplot_syldur = ggplot(data, aes(x = as.factor(stress), y = syl_dur, fill = syllable))+
+  xlab("Stress")+ ylab("Syllable duration")+
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  facet_grid(Language ~ lang_profile,
+             labeller = labeller(Language = lang.labs, lang_profile = prof.labs))+
+  scale_fill_discrete(labels = c("Penultimate", "Ultimate"))+
+  theme(legend.position = "bottom")+
+  guides(fill=guide_legend(title="Syllable"))
+
+
+boxplot_syldur
+```
+
+```{r}
+cairo_pdf("figures/stats/syldur.pdf", family = "serif", width = 8, height = 6)
+boxplot_syldur
+dev.off()
+```
+
+```{r}
+boxplot_f1 = ggplot(data, aes(x = as.factor(stress), y = sF1_norm_center, fill = syllable))+
+  xlab("Stress")+ ylab("F1")+
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  facet_grid(Language ~ lang_profile,
+             labeller = labeller(Language = lang.labs, lang_profile = prof.labs))+
+  scale_fill_discrete(labels = c("Penultimate", "Ultimate"))+
+  theme(legend.position = "bottom")+
+  guides(fill=guide_legend(title="Syllable"))
+
+
+boxplot_f1
+```
+
+```{r}
+cairo_pdf("figures/stats/f1.pdf", family = "serif", width = 8, height = 6)
+boxplot_f1
+dev.off()
+```
+
+```{r}
+boxplot_f2 = ggplot(data, aes(x = as.factor(stress), y = sF2_norm_center, fill = syllable))+
+  xlab("Stress")+ ylab("F2")+
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  facet_grid(Language ~ lang_profile,
+             labeller = labeller(Language = lang.labs, lang_profile = prof.labs))+
+  scale_fill_discrete(labels = c("Penultimate", "Ultimate"))+
+  theme(legend.position = "bottom")+
+  guides(fill=guide_legend(title="Syllable"))
+
+
+boxplot_f2
+```
+
+```{r}
+cairo_pdf("figures/stats/f2.pdf", family = "serif", width = 8, height = 6)
+boxplot_f2
+dev.off()
+```
+
+```{r}
+boxplot_f0 = ggplot(data, aes(x = as.factor(stress), y = f0, fill = syllable))+
+  xlab("Stress")+ ylab("F0")+ ylim(-10,10)+
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  facet_grid(Language ~ lang_profile,
+             labeller = labeller(Language = lang.labs, lang_profile = prof.labs))+
+  scale_fill_discrete(labels = c("Penultimate", "Ultimate"))+
+  theme(legend.position = "bottom")+
+  guides(fill=guide_legend(title="Syllable"))
+
+
+boxplot_f0
+```
+
+```{r}
+cairo_pdf("figures/stats/f0.pdf", family = "serif", width = 8, height = 6)
+boxplot_f0
+dev.off()
+```
